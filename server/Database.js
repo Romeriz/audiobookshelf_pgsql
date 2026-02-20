@@ -284,7 +284,13 @@ class Database {
         password: this.dbConfig.pass,
         logging: logging,
         benchmark: benchmark,
-        dialectOptions: {}
+        dialectOptions: {},
+        pool: {
+          max: parseInt(process.env.ABS_DB_POOL_MAX) || 20,
+          min: parseInt(process.env.ABS_DB_POOL_MIN) || 5,
+          acquire: parseInt(process.env.ABS_DB_POOL_ACQUIRE) || 30000,
+          idle: parseInt(process.env.ABS_DB_POOL_IDLE) || 10000
+        }
       }
 
       if (this.dbConfig.ssl) {
@@ -316,7 +322,8 @@ class Database {
 
       if (this.isPostgres) {
         // PostgreSQL-specific setup
-        Logger.info(`[Database] Db connection was successful`)
+        const poolConfig = this.sequelize.options.pool
+        Logger.info(`[Database] Db connection was successful (pool: max=${poolConfig.max}, min=${poolConfig.min})`)
         // PostgreSQL has native support for case-insensitive text search via LOWER()
         // and unaccent extension if available
         try {
