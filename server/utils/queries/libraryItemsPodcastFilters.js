@@ -455,7 +455,7 @@ module.exports = {
 
     // Search tags
     const tagMatches = []
-    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'tags'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'tags'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -472,7 +472,7 @@ module.exports = {
 
     // Search genres
     const genreMatches = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -588,7 +588,7 @@ module.exports = {
    */
   async getGenresWithCount(libraryId) {
     const genres = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC;`, {
       replacements: {
         libraryId
       },

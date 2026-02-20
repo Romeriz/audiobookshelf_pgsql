@@ -104,6 +104,17 @@ class Database {
     return this.isPostgres ? `${columnRef} IS NOT NULL` : `json_valid(${columnRef})`
   }
 
+  /**
+   * Get JSON array element extraction function for the current database type
+   * SQLite uses json_each() which returns JSON, PostgreSQL uses json_each() with text casting for GROUP BY
+   * @param {string} valueRef - The value reference from json_each
+   * @returns {string} - Database-specific extraction expression for use in GROUP BY
+   */
+  jsonEachText(valueRef) {
+    return this.isPostgres ? `${valueRef}::text` : valueRef
+  }
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }
