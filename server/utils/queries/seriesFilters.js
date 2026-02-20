@@ -60,7 +60,7 @@ module.exports = {
     // TODO: Simplify and break-out
     let attrQuery = null
     if (['genres', 'tags', 'narrators'].includes(filterGroup)) {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', filterGroup)}) WHERE json_valid(${Database.getColumnRef('b', filterGroup)}) AND json_each.value = :filterValue) > 0`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', filterGroup)}) WHERE ${Database.jsonValid(Database.getColumnRef('b', filterGroup))} AND json_each.value = :filterValue) > 0`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'authors') {
       attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('bookAuthors')} ba WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'authorId')} = :filterValue`
@@ -99,9 +99,9 @@ module.exports = {
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) = 0'
+          attrQuery += ` AND (SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) = 0`
         } else {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) > 0'
+          attrQuery += ` AND (SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) > 0`
         }
       }
     }
@@ -128,9 +128,9 @@ module.exports = {
       order.push(['createdAt', dir])
     } else if (sortBy === 'name') {
       if (global.ServerSettings.sortingIgnorePrefix) {
-        order.push([Sequelize.literal('nameIgnorePrefix COLLATE NOCASE'), dir])
+        order.push([Sequelize.literal(Database.collateNocase('nameIgnorePrefix')), dir])
       } else {
-        order.push([Sequelize.literal(`${Database.getColumnRef('series', 'name')} COLLATE NOCASE`), dir])
+        order.push([Sequelize.literal(Database.collateNocase(Database.getColumnRef('series', 'name'))), dir])
       }
     } else if (sortBy === 'totalDuration') {
       seriesAttributes.include.push([Sequelize.literal(`(SELECT SUM(${Database.getColumnRef('b', 'duration')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'totalDuration'])

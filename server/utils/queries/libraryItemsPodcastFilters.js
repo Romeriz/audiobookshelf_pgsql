@@ -24,10 +24,10 @@ module.exports = {
     if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
       replacements['userTagsSelected'] = user.permissions.itemTagsSelected
       if (user.permissions.selectedTagsNotAccessible) {
-        podcastWhere.push(Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected))`), 0))
+        podcastWhere.push(Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), 0))
       } else {
         podcastWhere.push(
-          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected))`), {
+          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), {
             [Sequelize.Op.gte]: 1
           })
         )
@@ -53,7 +53,7 @@ module.exports = {
     const replacements = {}
 
     if (['genres', 'tags'].includes(group)) {
-      mediaWhere[group] = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE json_valid(${group}) AND json_each.value = :filterValue)`), {
+      mediaWhere[group] = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE ${Database.jsonValid(group)} AND json_each.value = :filterValue)`), {
         [Sequelize.Op.gte]: 1
       })
       replacements.filterValue = value
@@ -87,12 +87,12 @@ module.exports = {
       return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'mtime')} ${dir}`)]]
     } else if (sortBy === 'media.metadata.author') {
       const nullDir = sortDesc ? 'DESC NULLS FIRST' : 'ASC NULLS LAST'
-      return [[Sequelize.literal(`${Database.getColumnRef('podcast', 'author')} COLLATE NOCASE ${nullDir}`)]]
+      return [[Sequelize.literal(`${Database.collateNocase(Database.getColumnRef('podcast', 'author'))} ${nullDir}`)]]
     } else if (sortBy === 'media.metadata.title') {
       if (global.ServerSettings.sortingIgnorePrefix) {
-        return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'titleIgnorePrefix')} COLLATE NOCASE`), dir]]
+        return [[Sequelize.literal(Database.collateNocase(Database.getColumnRef('libraryItem', 'titleIgnorePrefix'))), dir]]
       } else {
-        return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'title')} COLLATE NOCASE`), dir]]
+        return [[Sequelize.literal(Database.collateNocase(Database.getColumnRef('libraryItem', 'title'))), dir]]
       }
     } else if (sortBy === 'media.numTracks') {
       return [['numEpisodes', dir]]
@@ -455,7 +455,7 @@ module.exports = {
 
     // Search tags
     const tagMatches = []
-    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE json_valid(p.tags) AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'tags'))} AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -472,7 +472,7 @@ module.exports = {
 
     // Search genres
     const genreMatches = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE json_valid(p.genres) AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -588,7 +588,7 @@ module.exports = {
    */
   async getGenresWithCount(libraryId) {
     const genres = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE json_valid(p.genres) AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
       replacements: {
         libraryId
       },

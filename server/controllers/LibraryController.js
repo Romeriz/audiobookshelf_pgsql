@@ -1039,9 +1039,9 @@ class LibraryController {
     let order = undefined
     const direction = payload.sortDesc ? 'DESC' : 'ASC'
     if (payload.sortBy === 'name') {
-      order = [[Sequelize.literal('name COLLATE NOCASE'), direction]]
+      order = [[Sequelize.literal(Database.collateNocase('name')), direction]]
     } else if (payload.sortBy === 'lastFirst') {
-      order = [[Sequelize.literal('lastFirst COLLATE NOCASE'), direction]]
+      order = [[Sequelize.literal(Database.collateNocase('lastFirst')), direction]]
     } else if (payload.sortBy === 'addedAt') {
       order = [['createdAt', direction]]
     } else if (payload.sortBy === 'updatedAt') {
@@ -1344,7 +1344,7 @@ class LibraryController {
         {
           libraryId: req.library.id
         },
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = "${metadataFilename}")`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(libraryFiles) WHERE ${Database.jsonValid('libraryFiles')} AND json_extract(json_each.value, '$.metadata.filename') = '${metadataFilename}')`), {
           [Sequelize.Op.gte]: 1
         })
       ]

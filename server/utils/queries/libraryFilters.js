@@ -239,9 +239,9 @@ module.exports = {
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE json_valid(${Database.getColumnRef('b', 'tags')}) AND json_each.value IN (:userTagsSelected)) = 0`
+          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'tags'))} AND json_each.value IN (:userTagsSelected)) = 0`
         } else {
-          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE json_valid(${Database.getColumnRef('b', 'tags')}) AND json_each.value IN (:userTagsSelected)) > 0`
+          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'tags'))} AND json_each.value IN (:userTagsSelected)) > 0`
         }
       }
       seriesWhere.push(

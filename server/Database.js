@@ -84,6 +84,26 @@ class Database {
     return this.isPostgres ? (value ? 'true' : 'false') : (value ? '1' : '0')
   }
 
+  /**
+   * Get collation clause for case-insensitive sorting
+   * SQLite uses COLLATE NOCASE, PostgreSQL uses default collation or LOWER()
+   * @param {string} columnRef - The column reference (already quoted)
+   * @returns {string} - Database-specific collation clause
+   */
+  collateNocase(columnRef) {
+    return this.isPostgres ? columnRef : `${columnRef} COLLATE NOCASE`
+  }
+
+  /**
+   * Get JSON validation check for the current database type
+   * SQLite uses json_valid(), PostgreSQL assumes JSON/JSONB columns are valid
+   * @param {string} columnRef - The column reference (already quoted)
+   * @returns {string} - Database-specific JSON validation expression
+   */
+  jsonValid(columnRef) {
+    return this.isPostgres ? `${columnRef} IS NOT NULL` : `json_valid(${columnRef})`
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }
