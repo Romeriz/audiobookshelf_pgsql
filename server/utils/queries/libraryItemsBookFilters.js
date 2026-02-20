@@ -263,13 +263,13 @@ module.exports = {
     }
 
     if (sortBy === 'addedAt') {
-      return [[Sequelize.literal('libraryItem.createdAt'), dir]]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'createdAt')} ${dir}`)]]
     } else if (sortBy === 'size') {
-      return [[Sequelize.literal('libraryItem.size'), dir]]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'size')} ${dir}`)]]
     } else if (sortBy === 'birthtimeMs') {
-      return [[Sequelize.literal('libraryItem.birthtime'), dir]]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'birthtime')} ${dir}`)]]
     } else if (sortBy === 'mtimeMs') {
-      return [[Sequelize.literal('libraryItem.mtime'), dir]]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'mtime')} ${dir}`)]]
     } else if (sortBy === 'media.duration') {
       return [['duration', dir]]
     } else if (sortBy === 'media.metadata.publishedYear') {
