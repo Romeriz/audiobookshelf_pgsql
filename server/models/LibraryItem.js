@@ -688,10 +688,10 @@ class LibraryItem extends Model {
         lastScanVersion: DataTypes.STRING,
         libraryFiles: DataTypes.JSON,
         extraData: DataTypes.JSON,
-        title: DataTypes.STRING,
-        titleIgnorePrefix: DataTypes.STRING,
-        authorNamesFirstLast: DataTypes.STRING,
-        authorNamesLastFirst: DataTypes.STRING
+        title: DataTypes.TEXT,
+        titleIgnorePrefix: DataTypes.TEXT,
+        authorNamesFirstLast: DataTypes.TEXT,
+        authorNamesLastFirst: DataTypes.TEXT
       },
       {
         sequelize,

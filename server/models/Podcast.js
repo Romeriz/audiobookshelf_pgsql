@@ -128,9 +128,9 @@ class Podcast extends Model {
           defaultValue: DataTypes.UUIDV4,
           primaryKey: true
         },
-        title: DataTypes.STRING,
-        titleIgnorePrefix: DataTypes.STRING,
-        author: DataTypes.STRING,
+        title: DataTypes.TEXT,
+        titleIgnorePrefix: DataTypes.TEXT,
+        author: DataTypes.TEXT,
         releaseDate: DataTypes.STRING,
         feedURL: DataTypes.STRING,
         imageURL: DataTypes.STRING,
