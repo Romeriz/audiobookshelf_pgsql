@@ -899,7 +899,7 @@ module.exports = {
             [Sequelize.Op.or]: [null, 0]
           },
           [Sequelize.Op.or]: [
-            Sequelize.where(Sequelize.literal(`(SELECT COUNT(*) FROM ${Database.getTableName('bookSeries')} bs where bs.bookId = book.id)`), 0),
+            Sequelize.where(Sequelize.literal(`(SELECT COUNT(*) FROM ${Database.getTableName('bookSeries')} bs where ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('book', 'id')})`), 0),
             {
               id: {
                 [Sequelize.Op.in]: booksFromSeriesToInclude
