@@ -14,7 +14,8 @@ class Database {
   constructor() {
     this.sequelize = null
     this.dbPath = null
-    this.isNew = false // New absdatabase.sqlite created
+    this.dbConfig = null
+    this.isNew = false // New database created
     this.hasRootUser = false // Used to show initialization page in web ui
 
     this.settings = []
@@ -31,6 +32,14 @@ class Database {
 
     this.supportsUnaccent = false
     this.supportsUnicodeFoldings = false
+  }
+
+  /**
+   * Check if using PostgreSQL
+   * @returns {boolean}
+   */
+  get isPostgres() {
+    return this.dbConfig?.type === 'postgres'
   }
 
   get models() {
@@ -177,19 +186,48 @@ class Database {
   /**
    * Connect to db, build models and run migrations
    * @param {boolean} [force=false] Used for testing, drops & re-creates all tables
+   * @param {Object} [dbConfig] Database configuration object
+   * @param {string} [dbConfig.type='sqlite'] - Database type: 'sqlite' or 'postgres'
+   * @param {string} [dbConfig.host='localhost'] - PostgreSQL host
+   * @param {number} [dbConfig.port=5432] - PostgreSQL port
+   * @param {string} [dbConfig.name='audiobookshelf'] - PostgreSQL database name
+   * @param {string} [dbConfig.user] - PostgreSQL username
+   * @param {string} [dbConfig.pass] - PostgreSQL password
+   * @param {boolean} [dbConfig.ssl=false] - Use SSL for PostgreSQL
    */
-  async init(force = false) {
-    this.dbPath = Path.join(global.ConfigPath, 'absdatabase.sqlite')
+  async init(force = false, dbConfig = { type: 'sqlite' }) {
+    this.dbConfig = dbConfig
 
-    // First check if this is a new database
-    this.isNew = !(await this.checkHasDb()) || force
+    if (this.isPostgres) {
+      // PostgreSQL mode - no local file check needed
+      this.isNew = force
+    } else {
+      // SQLite mode - check for existing database file
+      this.dbPath = Path.join(global.ConfigPath, 'absdatabase.sqlite')
+      this.isNew = !(await this.checkHasDb()) || force
+    }
 
     if (!(await this.connect())) {
       throw new Error('Database connection failed')
     }
 
+    // For PostgreSQL, check if users table exists to determine if this is a new database
+    // The users table is created by the models, so if it doesn't exist, the database is new
+    if (this.isPostgres && !this.isNew) {
+      try {
+        const queryInterface = this.sequelize.getQueryInterface()
+        const usersTableExists = await queryInterface.tableExists('users')
+        if (!usersTableExists) {
+          Logger.info(`[Database] PostgreSQL database is new (no users table found)`)
+          this.isNew = true
+        }
+      } catch (error) {
+        Logger.warn(`[Database] Could not check for users table:`, error.message)
+      }
+    }
+
     try {
-      const migrationManager = new MigrationManager(this.sequelize, this.isNew, global.ConfigPath)
+      const migrationManager = new MigrationManager(this.sequelize, this.isNew, global.ConfigPath, this.dbConfig)
       await migrationManager.init(packageJson.version)
       await migrationManager.runMigrations()
     } catch (error) {
@@ -204,9 +242,15 @@ class Database {
 
     await this.loadData()
 
-    Logger.info(`[Database] running ANALYZE`)
-    await this.sequelize.query('ANALYZE')
-    Logger.info(`[Database] ANALYZE completed`)
+    if (this.isPostgres) {
+      Logger.info(`[Database] running ANALYZE`)
+      await this.sequelize.query('ANALYZE')
+      Logger.info(`[Database] ANALYZE completed`)
+    } else {
+      Logger.info(`[Database] running ANALYZE`)
+      await this.sequelize.query('ANALYZE')
+      Logger.info(`[Database] ANALYZE completed`)
+    }
   }
 
   /**
@@ -214,8 +258,6 @@ class Database {
    * @returns {boolean}
    */
   async connect() {
-    Logger.info(`[Database] Initializing db at "${this.dbPath}"`)
-
     let logging = false
     let benchmark = false
     if (process.env.QUERY_LOGGING === 'log') {
@@ -229,13 +271,42 @@ class Database {
       benchmark = true
     }
 
-    this.sequelize = new Sequelize({
-      dialect: 'sqlite',
-      storage: this.dbPath,
-      logging: logging,
-      benchmark: benchmark,
-      transactionType: 'IMMEDIATE'
-    })
+    if (this.isPostgres) {
+      // PostgreSQL connection
+      Logger.info(`[Database] Initializing PostgreSQL db at "${this.dbConfig.host}:${this.dbConfig.port}/${this.dbConfig.name}"`)
+
+      const sequelizeConfig = {
+        dialect: 'postgres',
+        host: this.dbConfig.host,
+        port: this.dbConfig.port,
+        database: this.dbConfig.name,
+        username: this.dbConfig.user,
+        password: this.dbConfig.pass,
+        logging: logging,
+        benchmark: benchmark,
+        dialectOptions: {}
+      }
+
+      if (this.dbConfig.ssl) {
+        sequelizeConfig.dialectOptions.ssl = {
+          require: true,
+          rejectUnauthorized: false
+        }
+      }
+
+      this.sequelize = new Sequelize(sequelizeConfig)
+    } else {
+      // SQLite connection
+      Logger.info(`[Database] Initializing SQLite db at "${this.dbPath}"`)
+
+      this.sequelize = new Sequelize({
+        dialect: 'sqlite',
+        storage: this.dbPath,
+        logging: logging,
+        benchmark: benchmark,
+        transactionType: 'IMMEDIATE'
+      })
+    }
 
     // Helper function
     this.sequelize.uppercaseFirst = (str) => (str ? `${str[0].toUpperCase()}${str.substr(1)}` : '')
@@ -243,34 +314,50 @@ class Database {
     try {
       await this.sequelize.authenticate()
 
-      // Set SQLite pragmas from environment variables
-      const allowedPragmas = [
-        { name: 'mmap_size', env: 'SQLITE_MMAP_SIZE' },
-        { name: 'cache_size', env: 'SQLITE_CACHE_SIZE' },
-        { name: 'temp_store', env: 'SQLITE_TEMP_STORE' }
-      ]
+      if (this.isPostgres) {
+        // PostgreSQL-specific setup
+        Logger.info(`[Database] Db connection was successful`)
+        // PostgreSQL has native support for case-insensitive text search via LOWER()
+        // and unaccent extension if available
+        try {
+          await this.sequelize.query('CREATE EXTENSION IF NOT EXISTS unaccent')
+          Logger.info(`[Database] Db supports unaccent`)
+          this.supportsUnaccent = true
+        } catch (error) {
+          Logger.warn(`[Database] unaccent extension not available`)
+        }
+      } else {
+        // SQLite-specific setup
+        // Set SQLite pragmas from environment variables
+        const allowedPragmas = [
+          { name: 'mmap_size', env: 'SQLITE_MMAP_SIZE' },
+          { name: 'cache_size', env: 'SQLITE_CACHE_SIZE' },
+          { name: 'temp_store', env: 'SQLITE_TEMP_STORE' }
+        ]
 
-      for (const pragma of allowedPragmas) {
-        const value = process.env[pragma.env]
-        if (value !== undefined) {
-          try {
-            Logger.info(`[Database] Running "PRAGMA ${pragma.name} = ${value}"`)
-            await this.sequelize.query(`PRAGMA ${pragma.name} = ${value}`)
-            const [result] = await this.sequelize.query(`PRAGMA ${pragma.name}`)
-            Logger.debug(`[Database] "PRAGMA ${pragma.name}" query result:`, result)
-          } catch (error) {
-            Logger.error(`[Database] Failed to set SQLite pragma ${pragma.name}`, error)
+        for (const pragma of allowedPragmas) {
+          const value = process.env[pragma.env]
+          if (value !== undefined) {
+            try {
+              Logger.info(`[Database] Running "PRAGMA ${pragma.name} = ${value}"`)
+              await this.sequelize.query(`PRAGMA ${pragma.name} = ${value}`)
+              const [result] = await this.sequelize.query(`PRAGMA ${pragma.name}`)
+              Logger.debug(`[Database] "PRAGMA ${pragma.name}" query result:`, result)
+            } catch (error) {
+              Logger.error(`[Database] Failed to set SQLite pragma ${pragma.name}`, error)
+            }
           }
         }
+
+        if (process.env.NUSQLITE3_PATH) {
+          await this.loadExtension(process.env.NUSQLITE3_PATH)
+          Logger.info(`[Database] Db supports unaccent and unicode foldings`)
+          this.supportsUnaccent = true
+          this.supportsUnicodeFoldings = true
+        }
+        Logger.info(`[Database] Db connection was successful`)
       }
 
-      if (process.env.NUSQLITE3_PATH) {
-        await this.loadExtension(process.env.NUSQLITE3_PATH)
-        Logger.info(`[Database] Db supports unaccent and unicode foldings`)
-        this.supportsUnaccent = true
-        this.supportsUnicodeFoldings = true
-      }
-      Logger.info(`[Database] Db connection was successful`)
       return true
     } catch (error) {
       Logger.error(`[Database] Failed to connect to db`, error)
@@ -307,7 +394,11 @@ class Database {
    * Disconnect from db
    */
   async disconnect() {
-    Logger.info(`[Database] Disconnecting sqlite db`)
+    if (this.isPostgres) {
+      Logger.info(`[Database] Disconnecting PostgreSQL db`)
+    } else {
+      Logger.info(`[Database] Disconnecting SQLite db`)
+    }
     await this.sequelize.close()
   }
 
@@ -315,8 +406,12 @@ class Database {
    * Reconnect to db and init
    */
   async reconnect() {
-    Logger.info(`[Database] Reconnecting sqlite db`)
-    await this.init()
+    if (this.isPostgres) {
+      Logger.info(`[Database] Reconnecting PostgreSQL db`)
+    } else {
+      Logger.info(`[Database] Reconnecting SQLite db`)
+    }
+    await this.init(false, this.dbConfig)
   }
 
   buildModels(force = false) {
@@ -782,16 +877,17 @@ class Database {
     }
 
     // Remove mediaProgresses with duplicate mediaItemId (remove the oldest updatedAt or if updatedAt is the same, remove arbitrary one)
-    const [duplicateMediaProgresses] = await this.sequelize.query(`SELECT mp1.id, mp1.mediaItemId
-FROM mediaProgresses mp1
+    const tableName = this.isPostgres ? '"mediaProgresses"' : 'mediaProgresses'
+    const [duplicateMediaProgresses] = await this.sequelize.query(`SELECT mp1.id, mp1."mediaItemId"
+FROM ${tableName} mp1
 WHERE EXISTS (
     SELECT 1
-    FROM mediaProgresses mp2
-    WHERE mp2.mediaItemId = mp1.mediaItemId
-    AND mp2.userId = mp1.userId
+    FROM ${tableName} mp2
+    WHERE mp2."mediaItemId" = mp1."mediaItemId"
+    AND mp2."userId" = mp1."userId"
     AND (
-        mp2.updatedAt > mp1.updatedAt
-        OR (mp2.updatedAt = mp1.updatedAt AND mp2.id < mp1.id)
+        mp2."updatedAt" > mp1."updatedAt"
+        OR (mp2."updatedAt" = mp1."updatedAt" AND mp2.id < mp1.id)
     )
 )`)
     for (const duplicateMediaProgress of duplicateMediaProgresses) {
@@ -837,7 +933,7 @@ WHERE EXISTS (
   }
 
   async createTextSearchQuery(query) {
-    const textQuery = new this.TextSearchQuery(this.sequelize, this.supportsUnaccent, query)
+    const textQuery = new this.TextSearchQuery(this.sequelize, this.supportsUnaccent, query, this.isPostgres)
     await textQuery.init()
     return textQuery
   }
@@ -847,14 +943,36 @@ WHERE EXISTS (
    * It adds triggers to update libraryItems.title[IgnorePrefix] when (books|podcasts).title[IgnorePrefix] is updated
    */
   async addTriggers() {
-    await this.addTriggerIfNotExists('books', 'title', 'id', 'libraryItems', 'title', 'mediaId')
-    await this.addTriggerIfNotExists('books', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
-    await this.addTriggerIfNotExists('podcasts', 'title', 'id', 'libraryItems', 'title', 'mediaId')
-    await this.addTriggerIfNotExists('podcasts', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
-    await this.addAuthorNamesTriggersIfNotExist()
+    if (this.isPostgres) {
+      await this.addPostgresTriggers()
+    } else {
+      await this.addSqliteTriggers()
+    }
   }
 
-  async addTriggerIfNotExists(sourceTable, sourceColumn, sourceIdColumn, targetTable, targetColumn, targetIdColumn) {
+  /**
+   * Add SQLite-specific triggers
+   */
+  async addSqliteTriggers() {
+    await this.addSqliteTriggerIfNotExists('books', 'title', 'id', 'libraryItems', 'title', 'mediaId')
+    await this.addSqliteTriggerIfNotExists('books', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
+    await this.addSqliteTriggerIfNotExists('podcasts', 'title', 'id', 'libraryItems', 'title', 'mediaId')
+    await this.addSqliteTriggerIfNotExists('podcasts', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
+    await this.addSqliteAuthorNamesTriggersIfNotExist()
+  }
+
+  /**
+   * Add PostgreSQL-specific triggers
+   */
+  async addPostgresTriggers() {
+    await this.addPostgresTriggerIfNotExists('books', 'title', 'id', 'libraryItems', 'title', 'mediaId')
+    await this.addPostgresTriggerIfNotExists('books', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
+    await this.addPostgresTriggerIfNotExists('podcasts', 'title', 'id', 'libraryItems', 'title', 'mediaId')
+    await this.addPostgresTriggerIfNotExists('podcasts', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
+    await this.addPostgresAuthorNamesTriggersIfNotExist()
+  }
+
+  async addSqliteTriggerIfNotExists(sourceTable, sourceColumn, sourceIdColumn, targetTable, targetColumn, targetIdColumn) {
     const action = `update_${targetTable}_${targetColumn}`
     const fromSource = sourceTable === 'books' ? '' : `_from_${sourceTable}_${sourceColumn}`
     const triggerName = this.convertToSnakeCase(`${action}${fromSource}`)
@@ -862,7 +980,7 @@ WHERE EXISTS (
     const [[{ count }]] = await this.sequelize.query(`SELECT COUNT(*) as count FROM sqlite_master WHERE type='trigger' AND name='${triggerName}'`)
     if (count > 0) return // Trigger already exists
 
-    Logger.info(`[Database] Adding trigger ${triggerName}`)
+    Logger.info(`[Database] Adding SQLite trigger ${triggerName}`)
 
     await this.sequelize.query(`
       CREATE TRIGGER ${triggerName}
@@ -876,7 +994,51 @@ WHERE EXISTS (
     `)
   }
 
-  async addAuthorNamesTriggersIfNotExist() {
+  async addPostgresTriggerIfNotExists(sourceTable, sourceColumn, sourceIdColumn, targetTable, targetColumn, targetIdColumn) {
+    const action = `update_${targetTable}_${targetColumn}`
+    const fromSource = sourceTable === 'books' ? '' : `_from_${sourceTable}_${sourceColumn}`
+    const triggerName = this.convertToSnakeCase(`${action}${fromSource}`)
+    const functionName = `${triggerName}_func`
+
+    // Check if trigger exists
+    const [[{ count }]] = await this.sequelize.query(`
+      SELECT COUNT(*) as count 
+      FROM pg_trigger 
+      WHERE tgname = '${triggerName}'
+    `)
+    if (count > 0) return // Trigger already exists
+
+    Logger.info(`[Database] Adding PostgreSQL trigger ${triggerName}`)
+
+    // Quote column names for PostgreSQL to preserve case
+    const quotedSourceColumn = `"${sourceColumn}"`
+    const quotedTargetColumn = `"${targetColumn}"`
+    const quotedSourceIdColumn = `"${sourceIdColumn}"`
+    const quotedTargetIdColumn = `"${targetIdColumn}"`
+
+    // Create function
+    await this.sequelize.query(`
+      CREATE OR REPLACE FUNCTION ${functionName}()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        UPDATE "${targetTable}"
+          SET ${quotedTargetColumn} = NEW.${quotedSourceColumn}
+        WHERE "${targetTable}".${quotedTargetIdColumn} = NEW.${quotedSourceIdColumn};
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `)
+
+    // Create trigger
+    await this.sequelize.query(`
+      CREATE TRIGGER ${triggerName}
+        AFTER UPDATE OF ${quotedSourceColumn} ON "${sourceTable}"
+        FOR EACH ROW
+        EXECUTE FUNCTION ${functionName}();
+    `)
+  }
+
+  async addSqliteAuthorNamesTriggersIfNotExist() {
     const libraryItems = 'libraryItems'
     const bookAuthors = 'bookAuthors'
     const authors = 'authors'
@@ -900,7 +1062,7 @@ WHERE EXISTS (
       const [[{ count }]] = await this.sequelize.query(`SELECT COUNT(*) as count FROM sqlite_master WHERE type='trigger' AND name='${triggerName}'`)
       if (count > 0) return // Trigger already exists
 
-      Logger.info(`[Database] Adding trigger ${triggerName}`)
+      Logger.info(`[Database] Adding SQLite trigger ${triggerName}`)
 
       await this.sequelize.query(`
         CREATE TRIGGER ${triggerName}
@@ -925,7 +1087,7 @@ WHERE EXISTS (
       const [[{ count }]] = await this.sequelize.query(`SELECT COUNT(*) as count FROM sqlite_master WHERE type='trigger' AND name='${triggerName}'`)
       if (count > 0) return // Trigger already exists
 
-      Logger.info(`[Database] Adding trigger ${triggerName}`)
+      Logger.info(`[Database] Adding SQLite trigger ${triggerName}`)
 
       await this.sequelize.query(`
         CREATE TRIGGER ${triggerName}
@@ -935,7 +1097,108 @@ WHERE EXISTS (
             UPDATE ${libraryItems}
               SET (${columnNames}) = (${authorNamesSubQuery})
             WHERE mediaId IN (SELECT bookId FROM ${bookAuthors} WHERE authorId = NEW.id);
+          END;
+      `)
+    }
+
+    await addBookAuthorsTriggerIfNotExists('insert')
+    await addBookAuthorsTriggerIfNotExists('delete')
+    await addAuthorsUpdateTriggerIfNotExists()
+  }
+
+  async addPostgresAuthorNamesTriggersIfNotExist() {
+    const libraryItemsTable = '"libraryItems"'
+    const bookAuthorsTable = '"bookAuthors"'
+    const authorsTable = '"authors"'
+    const libraryItems = 'libraryItems'
+    const bookAuthors = 'bookAuthors'
+    const authors = 'authors'
+    const columns = [
+      { name: 'authorNamesFirstLast', source: `${authorsTable}."name"` },
+      { name: 'authorNamesLastFirst', source: `${authorsTable}."lastFirst"` }
+    ]
+    const authorsSort = `${bookAuthorsTable}."createdAt" ASC`
+    const columnNames = columns.map((column) => `"${column.name}"`).join(', ')
+    const columnSourcesExpression = columns.map((column) => `STRING_AGG(${column.source}, ', ' ORDER BY ${authorsSort})`).join(', ')
+
+    const addBookAuthorsTriggerIfNotExists = async (action) => {
+      const modifiedRecord = action === 'delete' ? 'OLD' : 'NEW'
+      const triggerName = this.convertToSnakeCase(`update_${libraryItems}_authorNames_on_${bookAuthors}_${action}`)
+      const functionName = `${triggerName}_func`
+
+      // Check if trigger exists
+      const [[{ count }]] = await this.sequelize.query(`
+        SELECT COUNT(*) as count 
+        FROM pg_trigger 
+        WHERE tgname = '${triggerName}'
+      `)
+      if (count > 0) return // Trigger already exists
+
+      Logger.info(`[Database] Adding PostgreSQL trigger ${triggerName}`)
+
+      // Create function
+      await this.sequelize.query(`
+        CREATE OR REPLACE FUNCTION ${functionName}()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          UPDATE ${libraryItemsTable}
+            SET (${columnNames}) = (
+              SELECT ${columnSourcesExpression}
+              FROM ${authorsTable} JOIN ${bookAuthorsTable} ON ${authorsTable}."id" = ${bookAuthorsTable}."authorId"
+              WHERE ${bookAuthorsTable}."bookId" = ${modifiedRecord}."bookId"
+            )
+          WHERE "mediaId" = ${modifiedRecord}."bookId";
+          RETURN ${modifiedRecord};
         END;
+        $$ LANGUAGE plpgsql;
+      `)
+
+      // Create trigger
+      await this.sequelize.query(`
+        CREATE TRIGGER ${triggerName}
+          AFTER ${action} ON ${bookAuthorsTable}
+          FOR EACH ROW
+          EXECUTE FUNCTION ${functionName}();
+      `)
+    }
+
+    const addAuthorsUpdateTriggerIfNotExists = async () => {
+      const triggerName = this.convertToSnakeCase(`update_${libraryItems}_authorNames_on_authors_update`)
+      const functionName = `${triggerName}_func`
+
+      // Check if trigger exists
+      const [[{ count }]] = await this.sequelize.query(`
+        SELECT COUNT(*) as count 
+        FROM pg_trigger 
+        WHERE tgname = '${triggerName}'
+      `)
+      if (count > 0) return // Trigger already exists
+
+      Logger.info(`[Database] Adding PostgreSQL trigger ${triggerName}`)
+
+      // Create function
+      await this.sequelize.query(`
+        CREATE OR REPLACE FUNCTION ${functionName}()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          UPDATE ${libraryItemsTable}
+            SET (${columnNames}) = (
+              SELECT ${columnSourcesExpression}
+              FROM ${authorsTable} JOIN ${bookAuthorsTable} ON ${authorsTable}."id" = ${bookAuthorsTable}."authorId"
+              WHERE ${bookAuthorsTable}."bookId" = ${libraryItemsTable}."mediaId"
+            )
+          WHERE "mediaId" IN (SELECT "bookId" FROM ${bookAuthorsTable} WHERE "authorId" = NEW."id");
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      `)
+
+      // Create trigger
+      await this.sequelize.query(`
+        CREATE TRIGGER ${triggerName}
+          AFTER UPDATE OF "name" ON ${authorsTable}
+          FOR EACH ROW
+          EXECUTE FUNCTION ${functionName}();
       `)
     }
 
@@ -949,11 +1212,12 @@ WHERE EXISTS (
   }
 
   TextSearchQuery = class {
-    constructor(sequelize, supportsUnaccent, query) {
+    constructor(sequelize, supportsUnaccent, query, isPostgres = false) {
       this.sequelize = sequelize
       this.supportsUnaccent = supportsUnaccent
       this.query = query
       this.hasAccents = false
+      this.isPostgres = isPostgres
     }
 
     /**
@@ -963,6 +1227,9 @@ WHERE EXISTS (
      * @returns {string}
      */
     normalize(value) {
+      if (this.isPostgres) {
+        return `unaccent(${value})`
+      }
       return `unaccent(${value})`
     }
 
@@ -989,7 +1256,12 @@ WHERE EXISTS (
      */
     matchExpression(column) {
       const pattern = this.sequelize.escape(`%${this.query}%`)
-      if (!this.supportsUnaccent) return `${column} LIKE ${pattern}`
+      if (!this.supportsUnaccent) {
+        if (this.isPostgres) {
+          return `${column} ILIKE ${pattern}`
+        }
+        return `${column} LIKE ${pattern}`
+      }
       const normalizedColumn = this.hasAccents ? column : this.normalize(column)
       return `${normalizedColumn} LIKE ${pattern}`
     }

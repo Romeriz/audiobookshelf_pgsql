@@ -18,6 +18,15 @@ async function up({ context: { queryInterface, logger } }) {
   // Upwards migration script
   logger.info('[2.15.0 migration] UPGRADE BEGIN: 2.15.0-series-column-unique ')
 
+  // Check if using PostgreSQL - skip this migration entirely
+  const isPostgres = queryInterface.sequelize.options.dialect === 'postgres'
+
+  if (isPostgres) {
+    logger.info('[2.15.0 migration] PostgreSQL detected - skipping SQLite-specific migration')
+    logger.info('[2.15.0 migration] UPGRADE END: 2.15.0-series-column-unique ')
+    return
+  }
+
   // Run reindex nocase to fix potential corruption issues due to the bad sqlite extension introduced in v2.12.0
   logger.info('[2.15.0 migration] Reindexing NOCASE indices to fix potential hidden corruption issues')
   await queryInterface.sequelize.query('REINDEX NOCASE;')

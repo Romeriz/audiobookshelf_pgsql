@@ -137,6 +137,9 @@ class Book extends Model {
    * @param {import('../Database').sequelize} sequelize
    */
   static init(sequelize) {
+    // Check if using PostgreSQL
+    const isPostgres = sequelize.options.dialect === 'postgres'
+
     super.init(
       {
         id: {
@@ -171,7 +174,7 @@ class Book extends Model {
         modelName: 'book',
         indexes: [
           {
-            fields: [
+            fields: isPostgres ? ['title'] : [
               {
                 name: 'title',
                 collate: 'NOCASE'

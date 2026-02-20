@@ -6,7 +6,15 @@ const optionDefinitions = [
   { name: 'source', alias: 's', type: String },
   { name: 'dev', alias: 'd', type: Boolean },
   // Run in production mode and use dev.js config
-  { name: 'prod-with-dev-env', alias: 'r', type: Boolean }
+  { name: 'prod-with-dev-env', alias: 'r', type: Boolean },
+  // Database options
+  { name: 'db-type', type: String },
+  { name: 'db-host', type: String },
+  { name: 'db-port', type: String },
+  { name: 'db-name', type: String },
+  { name: 'db-user', type: String },
+  { name: 'db-pass', type: String },
+  { name: 'db-ssl', type: Boolean }
 ]
 
 const commandLineArgs = require('./server/libs/commandLineArgs')
@@ -46,8 +54,24 @@ const SOURCE = options.source || process.env.SOURCE || 'debian'
 
 const ROUTER_BASE_PATH = process.env.ROUTER_BASE_PATH ?? '/audiobookshelf'
 
+// Database configuration
+const dbConfig = {
+  type: options['db-type'] || process.env.ABS_DB_TYPE || 'sqlite',
+  host: options['db-host'] || process.env.ABS_DB_HOST || 'localhost',
+  port: parseInt(options['db-port'] || process.env.ABS_DB_PORT || '5432'),
+  name: options['db-name'] || process.env.ABS_DB_NAME || 'audiobookshelf',
+  user: options['db-user'] || process.env.ABS_DB_USER,
+  pass: options['db-pass'] || process.env.ABS_DB_PASS,
+  ssl: options['db-ssl'] || process.env.ABS_DB_SSL === '1' || process.env.ABS_DB_SSL === 'true'
+}
+
 console.log(`Running in ${process.env.NODE_ENV} mode.`)
 console.log(`Options: CONFIG_PATH=${CONFIG_PATH}, METADATA_PATH=${METADATA_PATH}, PORT=${PORT}, HOST=${HOST}, SOURCE=${SOURCE}, ROUTER_BASE_PATH=${ROUTER_BASE_PATH}`)
+if (dbConfig.type === 'postgres') {
+  console.log(`Database: PostgreSQL (${dbConfig.host}:${dbConfig.port}/${dbConfig.name})`)
+} else {
+  console.log(`Database: SQLite (${Path.join(CONFIG_PATH, 'absdatabase.sqlite')})`)
+}
 
-const Server = new server(SOURCE, PORT, HOST, CONFIG_PATH, METADATA_PATH, ROUTER_BASE_PATH)
+const Server = new server(SOURCE, PORT, HOST, CONFIG_PATH, METADATA_PATH, ROUTER_BASE_PATH, dbConfig)
 Server.start()

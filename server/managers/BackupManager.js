@@ -27,6 +27,14 @@ class BackupManager {
     this.backups = []
   }
 
+  /**
+   * Check if using PostgreSQL database
+   * @returns {boolean}
+   */
+  get isPostgres() {
+    return Database.isPostgres
+  }
+
   get backupPath() {
     return global.ServerSettings.backupPath
   }
@@ -101,6 +109,12 @@ class BackupManager {
   }
 
   async uploadBackup(req, res) {
+    // PostgreSQL backups are not supported through this mechanism
+    if (this.isPostgres) {
+      Logger.warn(`[BackupManager] Backup upload not supported for PostgreSQL. Use pg_dump/pg_restore instead.`)
+      return res.status(400).send('Backup upload is not supported for PostgreSQL. Please use pg_dump/pg_restore for PostgreSQL backups.')
+    }
+
     const backupFile = req.files.file
     if (Path.extname(backupFile.name) !== '.audiobookshelf') {
       Logger.error(`[BackupManager] Invalid backup file uploaded "${backupFile.name}"`)
@@ -176,6 +190,12 @@ class BackupManager {
    * @param {import('express').Response} res
    */
   async requestApplyBackup(apiCacheManager, backup, res) {
+    // PostgreSQL backups are not supported through this mechanism
+    if (this.isPostgres) {
+      Logger.warn(`[BackupManager] Backup apply not supported for PostgreSQL. Use pg_restore instead.`)
+      return res.status(400).send('Backup apply is not supported for PostgreSQL. Please use pg_restore for PostgreSQL backups.')
+    }
+
     Logger.info(`[BackupManager] Applying backup at "${backup.fullPath}"`)
 
     const zip = new StreamZip.async({ file: backup.fullPath })
@@ -294,6 +314,12 @@ class BackupManager {
   }
 
   async runBackup() {
+    // PostgreSQL backups are handled externally via pg_dump
+    if (this.isPostgres) {
+      Logger.info(`[BackupManager] Automatic backups are not supported for PostgreSQL. Please use pg_dump for backups.`)
+      return false
+    }
+
     // Check if Metadata Path is inside Config Path (otherwise there will be an infinite loop as the archiver tries to zip itself)
     Logger.info(`[BackupManager] Running Backup`)
     const newBackup = new Backup()

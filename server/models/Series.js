@@ -87,6 +87,9 @@ class Series extends Model {
    * @param {import('../Database').sequelize} sequelize
    */
   static init(sequelize) {
+    // Check if using PostgreSQL
+    const isPostgres = sequelize.options.dialect === 'postgres'
+
     super.init(
       {
         id: {
@@ -103,7 +106,7 @@ class Series extends Model {
         modelName: 'series',
         indexes: [
           {
-            fields: [
+            fields: isPostgres ? ['name'] : [
               {
                 name: 'name',
                 collate: 'NOCASE'

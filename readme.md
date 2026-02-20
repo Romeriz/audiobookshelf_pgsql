@@ -447,6 +447,86 @@ If you are using VSCode, this project includes a couple of pre-defined targets t
 - `Debug client (nuxt)`—Run the client with live reload.
 - `Debug server and client (nuxt)`—Runs both the preceding two debug targets.
 
+# Database Support
+
+Audiobookshelf supports both **SQLite** (default) and **PostgreSQL** databases.
+
+## SQLite (Default)
+
+By default, Audiobookshelf uses SQLite with the database file stored at `{CONFIG_PATH}/absdatabase.sqlite`.
+
+## PostgreSQL
+
+Audiobookshelf can also be configured to use PostgreSQL 16+ instead of SQLite. This is useful for larger installations or when you want to use a separate database server.
+
+### Configuration
+
+To use PostgreSQL, set the following environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ABS_DB_TYPE` | Database type: `sqlite` or `postgres` | `sqlite` |
+| `ABS_DB_HOST` | PostgreSQL server hostname | `localhost` |
+| `ABS_DB_PORT` | PostgreSQL server port | `5432` |
+| `ABS_DB_NAME` | Database name | `audiobookshelf` |
+| `ABS_DB_USER` | Database username | *(required for PostgreSQL)* |
+| `ABS_DB_PASS` | Database password | *(required for PostgreSQL)* |
+| `ABS_DB_SSL` | Use SSL connection (`1` or `true`) | `false` |
+
+### Example Docker Compose with PostgreSQL
+
+```yaml
+version: '3.8'
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    environment:
+      - ABS_DB_TYPE=postgres
+      - ABS_DB_HOST=postgres
+      - ABS_DB_PORT=5432
+      - ABS_DB_NAME=audiobookshelf
+      - ABS_DB_USER=abs_user
+      - ABS_DB_PASS=secure_password
+    volumes:
+      - ./config:/config
+      - ./metadata:/metadata
+      - ./audiobooks:/audiobooks
+    ports:
+      - 13378:80
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: audiobookshelf
+      POSTGRES_USER: abs_user
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+```
+
+### PostgreSQL Backups
+
+When using PostgreSQL, the built-in backup functionality is disabled. You should use standard PostgreSQL backup tools instead:
+
+**Create a backup:**
+```bash
+pg_dump -h localhost -U abs_user audiobookshelf > audiobookshelf_backup.sql
+```
+
+**Restore from backup:**
+```bash
+psql -h localhost -U abs_user audiobookshelf < audiobookshelf_backup.sql
+```
+
+### Important Notes
+
+- PostgreSQL support requires a fresh database (no migration from SQLite)
+- The `unaccent` extension will be automatically enabled if available
+- Case-insensitive searches use `LOWER()` function or `ILIKE` operator
+- The automatic backup feature is disabled for PostgreSQL (use `pg_dump`/`pg_restore`)
+
 # How to Support
 
 [See the incomplete "How to Support" page](https://www.audiobookshelf.org/support)

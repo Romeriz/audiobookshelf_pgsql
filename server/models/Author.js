@@ -128,6 +128,9 @@ class Author extends Model {
    * @param {import('../Database').sequelize} sequelize
    */
   static init(sequelize) {
+    // Check if using PostgreSQL
+    const isPostgres = sequelize.options.dialect === 'postgres'
+
     super.init(
       {
         id: {
@@ -146,7 +149,7 @@ class Author extends Model {
         modelName: 'author',
         indexes: [
           {
-            fields: [
+            fields: isPostgres ? ['name'] : [
               {
                 name: 'name',
                 collate: 'NOCASE'

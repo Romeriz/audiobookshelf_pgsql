@@ -46,9 +46,10 @@ const expressSession = require('express-session')
 const MemoryStore = require('./libs/memorystore')
 
 class Server {
-  constructor(SOURCE, PORT, HOST, CONFIG_PATH, METADATA_PATH, ROUTER_BASE_PATH) {
+  constructor(SOURCE, PORT, HOST, CONFIG_PATH, METADATA_PATH, ROUTER_BASE_PATH, dbConfig = { type: 'sqlite' }) {
     this.Port = PORT
     this.Host = HOST
+    this.dbConfig = dbConfig
     global.Source = SOURCE
     global.isWin = process.platform === 'win32'
     global.ConfigPath = fileUtils.filePathToPOSIX(Path.normalize(CONFIG_PATH))
@@ -156,7 +157,7 @@ class Server {
       await this.binaryManager.init()
     }
 
-    await Database.init(false)
+    await Database.init(false, this.dbConfig)
     // Create or set JWT secret in token manager
     await this.auth.tokenManager.initTokenSecret()
 
@@ -476,24 +477,27 @@ class Server {
     }
 
     // Remove series from hide from continue listening that no longer exist
-    try {
-      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, json_group_array(value) AS seriesIdsToRemove FROM users u, json_each(u.extraData->"seriesHideFromContinueListening") LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id;`, {
-        model: Database.userModel,
-        type: Sequelize.QueryTypes.SELECT
-      })
-      for (const user of users) {
-        const extraData = JSON.parse(user.extraData)
-        const existingSeriesIds = extraData.seriesHideFromContinueListening
-        const seriesIdsToRemove = JSON.parse(user.dataValues.seriesIdsToRemove)
-        Logger.info(`[Server] Found ${seriesIdsToRemove.length} non-existent series in seriesHideFromContinueListening for user "${user.username}" - Removing (${seriesIdsToRemove.join(',')})`)
-        const newExtraData = {
-          ...extraData,
-          seriesHideFromContinueListening: existingSeriesIds.filter((s) => !seriesIdsToRemove.includes(s))
+    // Skip for PostgreSQL - uses SQLite-specific JSON functions
+    if (!Database.isPostgres) {
+      try {
+        const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, json_group_array(value) AS seriesIdsToRemove FROM users u, json_each(u.extraData->"seriesHideFromContinueListening") LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id;`, {
+          model: Database.userModel,
+          type: Sequelize.QueryTypes.SELECT
+        })
+        for (const user of users) {
+          const extraData = JSON.parse(user.extraData)
+          const existingSeriesIds = extraData.seriesHideFromContinueListening
+          const seriesIdsToRemove = JSON.parse(user.dataValues.seriesIdsToRemove)
+          Logger.info(`[Server] Found ${seriesIdsToRemove.length} non-existent series in seriesHideFromContinueListening for user "${user.username}" - Removing (${seriesIdsToRemove.join(',')})`)
+          const newExtraData = {
+            ...extraData,
+            seriesHideFromContinueListening: existingSeriesIds.filter((s) => !seriesIdsToRemove.includes(s))
+          }
+          await user.update({ extraData: newExtraData })
         }
-        await user.update({ extraData: newExtraData })
+      } catch (error) {
+        Logger.error(`[Server] Failed to cleanup users seriesHideFromContinueListening`, error)
       }
-    } catch (error) {
-      Logger.error(`[Server] Failed to cleanup users seriesHideFromContinueListening`, error)
     }
   }
 

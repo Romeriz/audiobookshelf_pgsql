@@ -18,6 +18,14 @@ async function up({ context: { queryInterface, logger } }) {
   // Upwards migration script
   logger.info('[2.17.3 migration] UPGRADE BEGIN: 2.17.3-fk-constraints')
 
+  // Check if using PostgreSQL - this migration is SQLite-specific
+  const isPostgres = queryInterface.sequelize.options.dialect === 'postgres'
+  if (isPostgres) {
+    logger.info('[2.17.3 migration] PostgreSQL detected - skipping SQLite-specific foreign key constraint migration')
+    logger.info('[2.17.3 migration] UPGRADE END: 2.17.3-fk-constraints')
+    return
+  }
+
   const execQuery = queryInterface.sequelize.query.bind(queryInterface.sequelize)
 
   // Disable foreign key constraints for the next sequence of operations

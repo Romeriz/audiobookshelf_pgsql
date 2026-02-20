@@ -662,6 +662,9 @@ class LibraryItem extends Model {
    * @param {import('../Database').sequelize} sequelize
    */
   static init(sequelize) {
+    // Check if using PostgreSQL
+    const isPostgres = sequelize.options.dialect === 'postgres'
+
     super.init(
       {
         id: {
@@ -710,16 +713,16 @@ class LibraryItem extends Model {
             fields: ['libraryId', 'mediaType', 'createdAt']
           },
           {
-            fields: ['libraryId', 'mediaType', { name: 'title', collate: 'NOCASE' }]
+            fields: isPostgres ? ['libraryId', 'mediaType', 'title'] : ['libraryId', 'mediaType', { name: 'title', collate: 'NOCASE' }]
           },
           {
-            fields: ['libraryId', 'mediaType', { name: 'titleIgnorePrefix', collate: 'NOCASE' }]
+            fields: isPostgres ? ['libraryId', 'mediaType', 'titleIgnorePrefix'] : ['libraryId', 'mediaType', { name: 'titleIgnorePrefix', collate: 'NOCASE' }]
           },
           {
-            fields: ['libraryId', 'mediaType', { name: 'authorNamesFirstLast', collate: 'NOCASE' }]
+            fields: isPostgres ? ['libraryId', 'mediaType', 'authorNamesFirstLast'] : ['libraryId', 'mediaType', { name: 'authorNamesFirstLast', collate: 'NOCASE' }]
           },
           {
-            fields: ['libraryId', 'mediaType', { name: 'authorNamesLastFirst', collate: 'NOCASE' }]
+            fields: isPostgres ? ['libraryId', 'mediaType', 'authorNamesLastFirst'] : ['libraryId', 'mediaType', { name: 'authorNamesLastFirst', collate: 'NOCASE' }]
           },
           {
             fields: ['libraryId', 'mediaId', 'mediaType']

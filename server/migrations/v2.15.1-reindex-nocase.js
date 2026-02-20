@@ -17,6 +17,14 @@ async function up({ context: { queryInterface, logger } }) {
   // Upwards migration script
   logger.info('[2.15.1 migration] UPGRADE BEGIN: 2.15.1-reindex-nocase ')
 
+  // Check if using PostgreSQL - this migration is SQLite-specific
+  const isPostgres = queryInterface.sequelize.options.dialect === 'postgres'
+  if (isPostgres) {
+    logger.info('[2.15.1 migration] PostgreSQL detected - skipping SQLite-specific REINDEX NOCASE')
+    logger.info('[2.15.1 migration] UPGRADE END: 2.15.1-reindex-nocase ')
+    return
+  }
+
   // Run reindex nocase to fix potential corruption issues due to the bad sqlite extension introduced in v2.12.0
   logger.info('[2.15.1 migration] Reindexing NOCASE indices to fix potential hidden corruption issues')
   await queryInterface.sequelize.query('REINDEX NOCASE;')
