@@ -74,6 +74,16 @@ class Database {
     return this.isPostgres ? `"${identifier}"` : identifier
   }
 
+  /**
+   * Get boolean literal for the current database type
+   * PostgreSQL requires true/false, SQLite accepts 1/0
+   * @param {boolean} value - The boolean value
+   * @returns {string} - Database-specific boolean literal
+   */
+  bool(value) {
+    return this.isPostgres ? (value ? 'true' : 'false') : (value ? '1' : '0')
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }

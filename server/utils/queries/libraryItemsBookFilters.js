@@ -716,10 +716,10 @@ module.exports = {
     bookWhere.push(...userPermissionBookWhere.bookWhere)
 
     let includeAttributes = [[Sequelize.literal(`(SELECT max(${Database.getColumnRef('mp', 'updatedAt')}) FROM ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('mediaProgresses')} mp WHERE ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')})`), 'recent_progress']]
-    let booksNotFinishedQuery = `SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND (${Database.getColumnRef('mp', 'isFinished')} = 0 OR ${Database.getColumnRef('mp', 'isFinished')} IS NULL)`
+    let booksNotFinishedQuery = `SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND (${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(false)} OR ${Database.getColumnRef('mp', 'isFinished')} IS NULL)`
 
     if (library.settings.onlyShowLaterBooksInContinueSeries) {
-      const maxSequenceQuery = `(SELECT CAST(max(${Database.getColumnRef('bs', 'sequence')}) as FLOAT) FROM ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('mediaProgresses')} mp WHERE ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'isFinished')} = 1 AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')})`
+      const maxSequenceQuery = `(SELECT CAST(max(${Database.getColumnRef('bs', 'sequence')}) as FLOAT) FROM ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('mediaProgresses')} mp WHERE ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(true)} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')})`
       includeAttributes.push([Sequelize.literal(`${maxSequenceQuery}`), 'maxSequence'])
 
       booksNotFinishedQuery = booksNotFinishedQuery + ` AND CAST(${Database.getColumnRef('bs', 'sequence')} as FLOAT) > ${maxSequenceQuery}`
@@ -735,7 +735,7 @@ module.exports = {
         },
         // TODO: Simplify queries
         // Has at least 1 book finished
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('mp', 'isFinished')} = 1)`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(true)})`), {
           [Sequelize.Op.gte]: 1
         }),
         // Has at least 1 book not finished (that has a sequence number higher than the highest already read, if library config is toggled)
@@ -743,7 +743,7 @@ module.exports = {
           [Sequelize.Op.gte]: 1
         }),
         // Has no books in progress
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'isFinished')} = 0 AND ${Database.getColumnRef('mp', 'currentTime')} > 0)`), 0)
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(false)} AND ${Database.getColumnRef('mp', 'currentTime')} > 0)`), 0)
       ],
       attributes: {
         include: includeAttributes
@@ -854,7 +854,7 @@ module.exports = {
         {
           libraryId
         },
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND (${Database.getColumnRef('mp', 'isFinished')} = 1 OR ${Database.getColumnRef('mp', 'currentTime')} > 0))`), 0)
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('bs', 'bookId')} WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId AND (${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(true)} OR ${Database.getColumnRef('mp', 'currentTime')} > 0))`), 0)
       ],
       replacements: {
         userId: user.id,
