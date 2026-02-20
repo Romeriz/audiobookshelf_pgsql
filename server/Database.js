@@ -114,6 +114,17 @@ class Database {
     return this.isPostgres ? `${valueRef}::text` : valueRef
   }
 
+  /**
+   * Get JSON array elements function for the current database type
+   * SQLite uses json_each() which works with both arrays and objects
+   * PostgreSQL requires json_array_elements() for arrays (json_each only works with objects)
+   * @param {string} columnRef - The column reference (already quoted)
+   * @returns {string} - Database-specific function for expanding JSON arrays
+   */
+  jsonArrayElements(columnRef) {
+    return this.isPostgres ? `json_array_elements(${columnRef})` : `json_each(${columnRef})`
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }

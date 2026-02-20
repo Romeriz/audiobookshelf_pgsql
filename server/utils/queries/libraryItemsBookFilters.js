@@ -1130,7 +1130,7 @@ module.exports = {
 
     // Search narrators
     const narratorMatches = []
-    const [narratorResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numBooks FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.narrators) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'narrators'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} LIMIT :limit OFFSET :offset;`, {
+    const [narratorResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numBooks FROM "books" b, ${Database.getTableName('libraryItems')} li, ${Database.jsonArrayElements('b.narrators')} WHERE ${Database.jsonValid(Database.getColumnRef('b', 'narrators'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1147,7 +1147,7 @@ module.exports = {
 
     // Search tags
     const tagMatches = []
-    const [tagResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.tags) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'tags'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [tagResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, ${Database.jsonArrayElements('b.tags')} WHERE ${Database.jsonValid(Database.getColumnRef('b', 'tags'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1164,7 +1164,7 @@ module.exports = {
 
     // Search genres
     const genreMatches = []
-    const [genreResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.genres) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'genres'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, ${Database.jsonArrayElements('b.genres')} WHERE ${Database.jsonValid(Database.getColumnRef('b', 'genres'))} AND ${matchJsonValue} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1244,7 +1244,7 @@ module.exports = {
    */
   async getGenresWithCount(libraryId) {
     const genres = []
-    const [genreResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.genres) WHERE ${Database.jsonValid(Database.getColumnRef('b', 'genres'))} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT ${Database.jsonEachText('value')} AS value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, ${Database.jsonArrayElements('b.genres')} WHERE ${Database.jsonValid(Database.getColumnRef('b', 'genres'))} AND b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY ${Database.jsonEachText('value')} ORDER BY numItems DESC;`, {
       replacements: {
         libraryId
       },
