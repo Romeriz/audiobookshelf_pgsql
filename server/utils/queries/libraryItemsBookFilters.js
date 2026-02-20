@@ -27,10 +27,10 @@ module.exports = {
     if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
       replacements['userTagsSelected'] = user.permissions.itemTagsSelected
       if (user.permissions.selectedTagsNotAccessible) {
-        bookWhere.push(Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), 0))
+        bookWhere.push(Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.jsonArrayElements('tags')} WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), 0))
       } else {
         bookWhere.push(
-          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), {
+          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.jsonArrayElements('tags')} WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected))`), {
             [Sequelize.Op.gte]: 1
           })
         )
@@ -189,7 +189,7 @@ module.exports = {
     } else if (group === 'explicit') {
       mediaWhere['explicit'] = true
     } else if (['genres', 'tags', 'narrators'].includes(group)) {
-      mediaWhere[group] = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE ${Database.jsonValid(group)} AND json_each.value = :filterValue)`), {
+      mediaWhere[group] = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.jsonArrayElements(group)} WHERE ${Database.jsonValid(group)} AND json_each.value = :filterValue)`), {
         [Sequelize.Op.gte]: 1
       })
       replacements.filterValue = value

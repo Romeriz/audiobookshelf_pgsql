@@ -60,7 +60,7 @@ module.exports = {
     // TODO: Simplify and break-out
     let attrQuery = null
     if (['genres', 'tags', 'narrators'].includes(filterGroup)) {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', filterGroup)}) WHERE ${Database.jsonValid(Database.getColumnRef('b', filterGroup))} AND json_each.value = :filterValue) > 0`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (SELECT count(*) FROM ${Database.jsonArrayElements(Database.getColumnRef('b', filterGroup))} WHERE ${Database.jsonValid(Database.getColumnRef('b', filterGroup))} AND json_each.value = :filterValue) > 0`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'authors') {
       attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('bookAuthors')} ba WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'authorId')} = :filterValue`
@@ -99,9 +99,9 @@ module.exports = {
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ` AND (SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) = 0`
+          attrQuery += ` AND (SELECT count(*) FROM ${Database.jsonArrayElements('tags')} WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) = 0`
         } else {
-          attrQuery += ` AND (SELECT count(*) FROM json_each(tags) WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) > 0`
+          attrQuery += ` AND (SELECT count(*) FROM ${Database.jsonArrayElements('tags')} WHERE ${Database.jsonValid('tags')} AND json_each.value IN (:userTagsSelected)) > 0`
         }
       }
     }
