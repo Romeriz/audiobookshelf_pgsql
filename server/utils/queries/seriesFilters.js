@@ -50,7 +50,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')})`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')})`), {
           [Sequelize.Op.gt]: 1
         })
       )
@@ -60,31 +60,31 @@ module.exports = {
     // TODO: Simplify and break-out
     let attrQuery = null
     if (['genres', 'tags', 'narrators'].includes(filterGroup)) {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', filterGroup)}) WHERE json_valid(${Database.getColumnRef('b', filterGroup)}) AND json_each.value = :filterValue) > 0`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', filterGroup)}) WHERE json_valid(${Database.getColumnRef('b', filterGroup)}) AND json_each.value = :filterValue) > 0`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'authors') {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('bookAuthors')} ba WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('ba', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('ba', 'authorId')} = :filterValue`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('bookAuthors')} ba WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('ba', 'authorId')} = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'publishers') {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('b', 'publisher')} = :filterValue`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('b', 'publisher')} = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'languages') {
-      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('b', 'language')} = :filterValue`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('b', 'language')} = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'progress') {
       if (filterValue === 'not-finished') {
-        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND (${Database.getColumnRef('mp', 'isFinished')} IS NULL OR ${Database.getColumnRef('mp', 'isFinished')} = 0)`
+        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'isFinished')} IS NULL OR ${Database.getColumnRef('mp', 'isFinished')} = 0)`
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'finished') {
-        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND (${Database.getColumnRef('mp', 'isFinished')} IS NULL OR ${Database.getColumnRef('mp', 'isFinished')} = 0)`
+        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'isFinished')} IS NULL OR ${Database.getColumnRef('mp', 'isFinished')} = 0)`
         seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'not-started') {
-        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND (${Database.getColumnRef('mp', 'isFinished')} = 1 OR ${Database.getColumnRef('mp', 'currentTime')} > 0)`
+        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'isFinished')} = 1 OR ${Database.getColumnRef('mp', 'currentTime')} > 0)`
         seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'in-progress') {
-        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.quoteIdentifier('b.id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')} AND (${Database.getColumnRef('mp', 'currentTime')} > 0 OR ${Database.getColumnRef('mp', 'ebookProgress')} > 0) AND ${Database.getColumnRef('mp', 'isFinished')} = 0`
+        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'currentTime')} > 0 OR ${Database.getColumnRef('mp', 'ebookProgress')} > 0) AND ${Database.getColumnRef('mp', 'isFinished')} = 0`
         userPermissionBookWhere.replacements.userId = user.id
       }
     }
@@ -92,7 +92,7 @@ module.exports = {
     // Handle user permissions to only include series with at least 1 book
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
-      if (!attrQuery) attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')}`
+      if (!attrQuery) attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')}`
 
       if (!user.canAccessExplicitContent) {
         attrQuery += ' AND b.explicit = 0'
@@ -122,7 +122,7 @@ module.exports = {
     // Handle sort order
     const dir = sortDesc ? 'DESC' : 'ASC'
     if (sortBy === 'numBooks') {
-      seriesAttributes.include.push([Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')})`), 'numBooks'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')})`), 'numBooks'])
       order.push(['numBooks', dir])
     } else if (sortBy === 'addedAt') {
       order.push(['createdAt', dir])
@@ -133,13 +133,13 @@ module.exports = {
         order.push([Sequelize.literal('`series`.`name` COLLATE NOCASE'), dir])
       }
     } else if (sortBy === 'totalDuration') {
-      seriesAttributes.include.push([Sequelize.literal(`(SELECT SUM(${Database.getColumnRef('b', 'duration')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.quoteIdentifier('b.id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'totalDuration'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT SUM(${Database.getColumnRef('b', 'duration')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'totalDuration'])
       order.push(['totalDuration', dir])
     } else if (sortBy === 'lastBookAdded') {
-      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(${Database.getColumnRef('b', 'createdAt')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.quoteIdentifier('b.id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'mostRecentBookAdded'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(${Database.getColumnRef('b', 'createdAt')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'mostRecentBookAdded'])
       order.push(['mostRecentBookAdded', dir])
     } else if (sortBy === 'lastBookUpdated') {
-      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(${Database.getColumnRef('b', 'updatedAt')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.quoteIdentifier('b.id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'mostRecentBookUpdated'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(${Database.getColumnRef('b', 'updatedAt')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'mostRecentBookUpdated'])
       order.push(['mostRecentBookUpdated', dir])
     } else if (sortBy === 'random') {
       order.push(Database.sequelize.random())
