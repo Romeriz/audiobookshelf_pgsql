@@ -145,7 +145,7 @@ module.exports = {
       .slice(0, 3)
 
     // Stats for total books, size and duration for everything added this year or earlier
-    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(li.size) AS totalSize, SUM(b.duration) AS totalDuration, COUNT(*) AS totalItems FROM libraryItems li, books b WHERE b.id = li.mediaId AND li.mediaType = 'book' AND li.createdAt < ":nextYear-01-01";`, {
+    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(li.size) AS totalSize, SUM(b.duration) AS totalDuration, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, "books" b WHERE b.id = li.mediaId AND li.mediaType = 'book' AND li.createdAt < ':nextYear-01-01';`, {
       replacements: {
         nextYear: year + 1
       }
@@ -179,7 +179,7 @@ module.exports = {
    * @returns {Promise<{books: SizeObject, podcasts: SizeObject, total: SizeObject}}>}
    */
   async getTotalSize() {
-    const [mediaTypeStats] = await Database.sequelize.query(`SELECT li.mediaType, SUM(li.size) AS totalSize, COUNT(*) AS numItems FROM libraryItems li group by li.mediaType;`)
+    const [mediaTypeStats] = await Database.sequelize.query(`SELECT li.mediaType, SUM(li.size) AS totalSize, COUNT(*) AS numItems FROM ${Database.getTableName('libraryItems')} li group by li.mediaType;`)
     const bookStats = mediaTypeStats.find((m) => m.mediaType === 'book')
     const podcastStats = mediaTypeStats.find((m) => m.mediaType === 'podcast')
 

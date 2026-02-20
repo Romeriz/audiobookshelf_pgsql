@@ -42,6 +42,29 @@ class Database {
     return this.dbConfig?.type === 'postgres'
   }
 
+  /**
+   * Get properly quoted table name for the current database type
+   * PostgreSQL requires quoted identifiers to preserve case
+   * SQLite is case-insensitive and doesn't need quoting
+   * @param {string} tableName - The table name
+   * @returns {string} - Properly quoted table name
+   */
+  getTableName(tableName) {
+    return this.isPostgres ? `"${tableName}"` : tableName
+  }
+
+  /**
+   * Get properly quoted column reference (table.column or "table"."column")
+   * PostgreSQL requires quoted identifiers to preserve case
+   * SQLite is case-insensitive and doesn't need quoting
+   * @param {string} tableName - The table name
+   * @param {string} columnName - The column name
+   * @returns {string} - Properly quoted column reference
+   */
+  getColumnRef(tableName, columnName) {
+    return this.isPostgres ? `"${tableName}"."${columnName}"` : `${tableName}.${columnName}`
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }

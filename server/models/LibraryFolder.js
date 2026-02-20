@@ -28,7 +28,7 @@ class LibraryFolder extends Model {
           defaultValue: DataTypes.UUIDV4,
           primaryKey: true
         },
-        path: DataTypes.STRING
+        path: DataTypes.TEXT
       },
       {
         sequelize,

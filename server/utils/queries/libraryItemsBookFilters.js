@@ -311,7 +311,7 @@ module.exports = {
    */
   async getCollapseSeriesBooksToExclude(bookFindOptions, seriesWhere) {
     const allSeries = await Database.seriesModel.findAll({
-      attributes: ['id', 'name', [Sequelize.literal('(SELECT count(*) FROM bookSeries bs WHERE bs.seriesId = series.id)'), 'numBooks']],
+      attributes: ['id', 'name', [Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id)`), 'numBooks']],
       distinct: true,
       subQuery: false,
       where: seriesWhere,
@@ -715,11 +715,11 @@ module.exports = {
     const userPermissionBookWhere = this.getUserPermissionBookWhereQuery(user)
     bookWhere.push(...userPermissionBookWhere.bookWhere)
 
-    let includeAttributes = [[Sequelize.literal('(SELECT max(mp.updatedAt) FROM bookSeries bs, mediaProgresses mp WHERE mp.mediaItemId = bs.bookId AND mp.userId = :userId AND bs.seriesId = series.id)'), 'recent_progress']]
-    let booksNotFinishedQuery = `SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId AND mp.userId = :userId WHERE bs.seriesId = series.id AND (mp.isFinished = 0 OR mp.isFinished IS NULL)`
+    let includeAttributes = [[Sequelize.literal(`(SELECT max(mp.updatedAt) FROM ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('mediaProgresses')} mp WHERE mp.mediaItemId = bs.bookId AND mp.userId = :userId AND bs.seriesId = series.id)`), 'recent_progress']]
+    let booksNotFinishedQuery = `SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = bs.bookId AND mp.userId = :userId WHERE bs.seriesId = series.id AND (mp.isFinished = 0 OR mp.isFinished IS NULL)`
 
     if (library.settings.onlyShowLaterBooksInContinueSeries) {
-      const maxSequenceQuery = `(SELECT CAST(max(bs.sequence) as FLOAT) FROM bookSeries bs, mediaProgresses mp WHERE mp.mediaItemId = bs.bookId AND mp.isFinished = 1 AND mp.userId = :userId AND bs.seriesId = series.id)`
+      const maxSequenceQuery = `(SELECT CAST(max(bs.sequence) as FLOAT) FROM ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('mediaProgresses')} mp WHERE mp.mediaItemId = bs.bookId AND mp.isFinished = 1 AND mp.userId = :userId AND bs.seriesId = series.id)`
       includeAttributes.push([Sequelize.literal(`${maxSequenceQuery}`), 'maxSequence'])
 
       booksNotFinishedQuery = booksNotFinishedQuery + ` AND CAST(bs.sequence as FLOAT) > ${maxSequenceQuery}`
@@ -735,7 +735,7 @@ module.exports = {
         },
         // TODO: Simplify queries
         // Has at least 1 book finished
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM mediaProgresses mp, bookSeries bs WHERE bs.seriesId = series.id AND mp.mediaItemId = bs.bookId AND mp.userId = :userId AND mp.isFinished = 1)`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND mp.mediaItemId = bs.bookId AND mp.userId = :userId AND mp.isFinished = 1)`), {
           [Sequelize.Op.gte]: 1
         }),
         // Has at least 1 book not finished (that has a sequence number higher than the highest already read, if library config is toggled)
@@ -743,7 +743,7 @@ module.exports = {
           [Sequelize.Op.gte]: 1
         }),
         // Has no books in progress
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM mediaProgresses mp, bookSeries bs WHERE mp.mediaItemId = bs.bookId AND mp.userId = :userId AND bs.seriesId = series.id AND mp.isFinished = 0 AND mp.currentTime > 0)`), 0)
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('mediaProgresses')} mp, ${Database.getTableName('bookSeries')} bs WHERE mp.mediaItemId = bs.bookId AND mp.userId = :userId AND bs.seriesId = series.id AND mp.isFinished = 0 AND mp.currentTime > 0)`), 0)
       ],
       attributes: {
         include: includeAttributes
@@ -854,7 +854,7 @@ module.exports = {
         {
           libraryId
         },
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = series.id AND mp.userId = :userId AND (mp.isFinished = 1 OR mp.currentTime > 0))`), 0)
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = series.id AND mp.userId = :userId AND (mp.isFinished = 1 OR mp.currentTime > 0))`), 0)
       ],
       replacements: {
         userId: user.id,
@@ -899,7 +899,7 @@ module.exports = {
             [Sequelize.Op.or]: [null, 0]
           },
           [Sequelize.Op.or]: [
-            Sequelize.where(Sequelize.literal(`(SELECT COUNT(*) FROM bookSeries bs where bs.bookId = book.id)`), 0),
+            Sequelize.where(Sequelize.literal(`(SELECT COUNT(*) FROM ${Database.getTableName('bookSeries')} bs where bs.bookId = book.id)`), 0),
             {
               id: {
                 [Sequelize.Op.in]: booksFromSeriesToInclude
@@ -1130,7 +1130,7 @@ module.exports = {
 
     // Search narrators
     const narratorMatches = []
-    const [narratorResults] = await Database.sequelize.query(`SELECT value, count(*) AS numBooks FROM books b, libraryItems li, json_each(b.narrators) WHERE json_valid(b.narrators) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value LIMIT :limit OFFSET :offset;`, {
+    const [narratorResults] = await Database.sequelize.query(`SELECT value, count(*) AS numBooks FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.narrators) WHERE json_valid(b.narrators) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1147,7 +1147,7 @@ module.exports = {
 
     // Search tags
     const tagMatches = []
-    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM books b, libraryItems li, json_each(b.tags) WHERE json_valid(b.tags) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.tags) WHERE json_valid(b.tags) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1164,7 +1164,7 @@ module.exports = {
 
     // Search genres
     const genreMatches = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM books b, libraryItems li, json_each(b.genres) WHERE json_valid(b.genres) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.genres) WHERE json_valid(b.genres) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -1244,7 +1244,7 @@ module.exports = {
    */
   async getGenresWithCount(libraryId) {
     const genres = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM books b, libraryItems li, json_each(b.genres) WHERE json_valid(b.genres) AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "books" b, ${Database.getTableName('libraryItems')} li, json_each(b.genres) WHERE json_valid(b.genres) AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
       replacements: {
         libraryId
       },
@@ -1265,7 +1265,7 @@ module.exports = {
    * @returns {Promise<{ totalSize:number, totalDuration:number, numAudioFiles:number, totalItems:number}>}
    */
   async getBookLibraryStats(libraryId) {
-    const [statResults] = await Database.sequelize.query(`SELECT SUM(li.size) AS totalSize, SUM(b.duration) AS totalDuration, SUM(json_array_length(b.audioFiles)) AS numAudioFiles, COUNT(*) AS totalItems FROM libraryItems li, books b WHERE b.id = li.mediaId AND li.libraryId = :libraryId;`, {
+    const [statResults] = await Database.sequelize.query(`SELECT SUM(li.size) AS totalSize, SUM(b.duration) AS totalDuration, SUM(json_array_length(b.audioFiles)) AS numAudioFiles, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, "books" b WHERE b.id = li.mediaId AND li.libraryId = :libraryId;`, {
       replacements: {
         libraryId
       }

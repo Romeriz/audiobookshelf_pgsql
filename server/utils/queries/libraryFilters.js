@@ -224,7 +224,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
           [Sequelize.Op.gt]: 1
         })
       )
@@ -233,7 +233,7 @@ module.exports = {
     // Handle user permissions to only include series with at least 1 book
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
-      let attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id'
+      let attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id`
       if (!user.canAccessExplicitContent) {
         attrQuery += ' AND b.explicit = 0'
       }

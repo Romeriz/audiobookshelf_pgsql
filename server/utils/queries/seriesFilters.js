@@ -50,7 +50,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
           [Sequelize.Op.gt]: 1
         })
       )
@@ -60,31 +60,31 @@ module.exports = {
     // TODO: Simplify and break-out
     let attrQuery = null
     if (['genres', 'tags', 'narrators'].includes(filterGroup)) {
-      attrQuery = `SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (SELECT count(*) FROM json_each(b.${filterGroup}) WHERE json_valid(b.${filterGroup}) AND json_each.value = :filterValue) > 0`
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (SELECT count(*) FROM json_each(b.${filterGroup}) WHERE json_valid(b.${filterGroup}) AND json_each.value = :filterValue) > 0`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'authors') {
-      attrQuery = 'SELECT count(*) FROM books b, bookSeries bs, bookAuthors ba WHERE bs.seriesId = series.id AND bs.bookId = b.id AND ba.bookId = b.id AND ba.authorId = :filterValue'
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs, ${Database.getTableName('bookAuthors')} ba WHERE bs.seriesId = series.id AND bs.bookId = b.id AND ba.bookId = b.id AND ba.authorId = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'publishers') {
-      attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.publisher = :filterValue'
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.publisher = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'languages') {
-      attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.language = :filterValue'
+      attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.language = :filterValue`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'progress') {
       if (filterValue === 'not-finished') {
-        attrQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)'
+        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)`
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'finished') {
-        const progQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)'
-        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
+        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)`
+        seriesWhere.push(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'not-started') {
-        const progQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished = 1 OR mp.currentTime > 0)'
-        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
+        const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished = 1 OR mp.currentTime > 0)`
+        seriesWhere.push(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'in-progress') {
-        attrQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.currentTime > 0 OR mp.ebookProgress > 0) AND mp.isFinished = 0'
+        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.currentTime > 0 OR mp.ebookProgress > 0) AND mp.isFinished = 0`
         userPermissionBookWhere.replacements.userId = user.id
       }
     }
@@ -92,7 +92,7 @@ module.exports = {
     // Handle user permissions to only include series with at least 1 book
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
-      if (!attrQuery) attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id'
+      if (!attrQuery) attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id`
 
       if (!user.canAccessExplicitContent) {
         attrQuery += ' AND b.explicit = 0'
@@ -122,7 +122,7 @@ module.exports = {
     // Handle sort order
     const dir = sortDesc ? 'DESC' : 'ASC'
     if (sortBy === 'numBooks') {
-      seriesAttributes.include.push([Sequelize.literal('(SELECT count(*) FROM bookSeries bs WHERE bs.seriesId = series.id)'), 'numBooks'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT count(*) FROM ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id)`), 'numBooks'])
       order.push(['numBooks', dir])
     } else if (sortBy === 'addedAt') {
       order.push(['createdAt', dir])
@@ -133,13 +133,13 @@ module.exports = {
         order.push([Sequelize.literal('`series`.`name` COLLATE NOCASE'), dir])
       }
     } else if (sortBy === 'totalDuration') {
-      seriesAttributes.include.push([Sequelize.literal('(SELECT SUM(b.duration) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)'), 'totalDuration'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT SUM(b.duration) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)`), 'totalDuration'])
       order.push(['totalDuration', dir])
     } else if (sortBy === 'lastBookAdded') {
-      seriesAttributes.include.push([Sequelize.literal('(SELECT MAX(b.createdAt) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)'), 'mostRecentBookAdded'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(b.createdAt) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)`), 'mostRecentBookAdded'])
       order.push(['mostRecentBookAdded', dir])
     } else if (sortBy === 'lastBookUpdated') {
-      seriesAttributes.include.push([Sequelize.literal('(SELECT MAX(b.updatedAt) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)'), 'mostRecentBookUpdated'])
+      seriesAttributes.include.push([Sequelize.literal(`(SELECT MAX(b.updatedAt) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND b.id = bs.bookId)`), 'mostRecentBookUpdated'])
       order.push(['mostRecentBookUpdated', dir])
     } else if (sortBy === 'random') {
       order.push(Database.sequelize.random())
