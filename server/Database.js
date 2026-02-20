@@ -113,7 +113,6 @@ class Database {
   jsonEachText(valueRef) {
     return this.isPostgres ? `${valueRef}::text` : valueRef
   }
-  }
 
   get models() {
     return this.sequelize?.models || {}
