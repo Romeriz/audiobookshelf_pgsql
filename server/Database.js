@@ -137,15 +137,15 @@ class Database {
   }
 
   /**
-   * Get JSON key extraction for array iteration
-   * SQLite: json_each(column->"key")
-   * PostgreSQL: json_array_elements(column->>'key') (must extract as text first)
+   * Get JSON key extraction for array iteration in FROM clause
+   * SQLite: json_each(column->"key") - returns key, value columns
+   * PostgreSQL: json_array_elements(column->>'key') AS value - returns value column
    * @param {string} columnRef - The column reference (already quoted)
    * @param {string} key - The JSON key to extract
-   * @returns {string} - Database-specific JSON extraction for iteration
+   * @returns {string} - Database-specific JSON extraction for FROM clause iteration
    */
   jsonExtractForIteration(columnRef, key) {
-    return this.isPostgres ? `json_array_elements(${columnRef}->>'${key}')` : `json_each(${columnRef}->"${key}")`
+    return this.isPostgres ? `json_array_elements(${columnRef}->>'${key}') AS value` : `json_each(${columnRef}->"${key}")`
   }
 
   get models() {

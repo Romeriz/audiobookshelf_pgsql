@@ -478,24 +478,24 @@ class Server {
 
     // Remove series from hide from continue listening that no longer exist
     try {
-      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u, ${Database.jsonExtractForIteration('u.extraData', 'seriesHideFromContinueListening')} LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
+      const jsonIterTable = Database.isPostgres ? `CROSS JOIN ${Database.jsonExtractForIteration('u.extraData', 'seriesHideFromContinueListening')}` : `, ${Database.jsonExtractForIteration('u.extraData', 'seriesHideFromContinueListening')}`
+      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
         model: Database.userModel,
         type: Sequelize.QueryTypes.SELECT
       })
-        for (const user of users) {
-          const extraData = JSON.parse(user.extraData)
-          const existingSeriesIds = extraData.seriesHideFromContinueListening
-          const seriesIdsToRemove = JSON.parse(user.dataValues.seriesIdsToRemove)
-          Logger.info(`[Server] Found ${seriesIdsToRemove.length} non-existent series in seriesHideFromContinueListening for user "${user.username}" - Removing (${seriesIdsToRemove.join(',')})`)
-          const newExtraData = {
-            ...extraData,
-            seriesHideFromContinueListening: existingSeriesIds.filter((s) => !seriesIdsToRemove.includes(s))
-          }
-          await user.update({ extraData: newExtraData })
+      for (const user of users) {
+        const extraData = JSON.parse(user.extraData)
+        const existingSeriesIds = extraData.seriesHideFromContinueListening
+        const seriesIdsToRemove = JSON.parse(user.dataValues.seriesIdsToRemove)
+        Logger.info(`[Server] Found ${seriesIdsToRemove.length} non-existent series in seriesHideFromContinueListening for user "${user.username}" - Removing (${seriesIdsToRemove.join(',')})`)
+        const newExtraData = {
+          ...extraData,
+          seriesHideFromContinueListening: existingSeriesIds.filter((s) => !seriesIdsToRemove.includes(s))
         }
-      } catch (error) {
-        Logger.error(`[Server] Failed to cleanup users seriesHideFromContinueListening`, error)
+        await user.update({ extraData: newExtraData })
       }
+    } catch (error) {
+      Logger.error(`[Server] Failed to cleanup users seriesHideFromContinueListening`, error)
     }
   }
 
