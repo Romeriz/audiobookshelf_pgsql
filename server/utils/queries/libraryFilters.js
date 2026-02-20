@@ -224,7 +224,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
+        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')})`), {
           [Sequelize.Op.gt]: 1
         })
       )
@@ -233,15 +233,15 @@ module.exports = {
     // Handle user permissions to only include series with at least 1 book
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
-      let attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE bs.seriesId = series.id AND bs.bookId = b.id`
+      let attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.quoteIdentifier('series.id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.quoteIdentifier('b.id')}`
       if (!user.canAccessExplicitContent) {
-        attrQuery += ' AND b.explicit = 0'
+        attrQuery += ` AND ${Database.getColumnRef('b', 'explicit')} = 0`
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) = 0'
+          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE json_valid(${Database.getColumnRef('b', 'tags')}) AND json_each.value IN (:userTagsSelected)) = 0`
         } else {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) > 0'
+          attrQuery += ` AND (SELECT count(*) FROM json_each(${Database.getColumnRef('b', 'tags')}) WHERE json_valid(${Database.getColumnRef('b', 'tags')}) AND json_each.value IN (:userTagsSelected)) > 0`
         }
       }
       seriesWhere.push(
