@@ -84,7 +84,7 @@ module.exports = {
         seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'in-progress') {
-        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'currentTime')} > 0 OR ${Database.getColumnRef('mp', 'ebookProgress')} > 0) AND ${Database.getColumnRef('mp', 'isFinished')} = 0`
+        attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON ${Database.getColumnRef('mp', 'mediaItemId')} = ${Database.getColumnRef('b', 'id')} AND ${Database.getColumnRef('mp', 'userId')} = :userId WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')} AND (${Database.getColumnRef('mp', 'currentTime')} > 0 OR ${Database.getColumnRef('mp', 'ebookProgress')} > 0) AND ${Database.getColumnRef('mp', 'isFinished')} = ${Database.bool(false)}`
         userPermissionBookWhere.replacements.userId = user.id
       }
     }
@@ -95,7 +95,7 @@ module.exports = {
       if (!attrQuery) attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')}`
 
       if (!user.canAccessExplicitContent) {
-        attrQuery += ' AND b.explicit = 0'
+        attrQuery += ` AND ${Database.getColumnRef('b', 'explicit')} = ${Database.bool(false)}`
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {

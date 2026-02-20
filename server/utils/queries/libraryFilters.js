@@ -235,7 +235,7 @@ module.exports = {
     if (userPermissionBookWhere.bookWhere.length) {
       let attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('bs', 'bookId')} = ${Database.getColumnRef('b', 'id')}`
       if (!user.canAccessExplicitContent) {
-        attrQuery += ` AND ${Database.getColumnRef('b', 'explicit')} = 0`
+        attrQuery += ` AND ${Database.getColumnRef('b', 'explicit')} = ${Database.bool(false)}`
       }
       if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
         if (user.permissions.selectedTagsNotAccessible) {

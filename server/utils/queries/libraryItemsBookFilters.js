@@ -760,9 +760,8 @@ module.exports = {
         order: [[Sequelize.literal('CAST(sequence AS FLOAT) ASC NULLS LAST')]],
         where: {
           '$book.mediaProgresses.isFinished$': {
-            [Sequelize.Op.or]: [null, 0]
-          }
-        },
+            [Sequelize.Op.or]: [null, false]
+          },
         include: {
           model: Database.bookModel,
           where: bookWhere,
