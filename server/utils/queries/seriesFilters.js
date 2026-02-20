@@ -77,11 +77,11 @@ module.exports = {
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'finished') {
         const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)`
-        seriesWhere.push(Sequelize.literal(`(${progQuery})`), 0))
+        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'not-started') {
         const progQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished = 1 OR mp.currentTime > 0)`
-        seriesWhere.push(Sequelize.literal(`(${progQuery})`), 0))
+        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'in-progress') {
         attrQuery = `SELECT count(*) FROM "books" b, ${Database.getTableName('bookSeries')} bs LEFT OUTER JOIN ${Database.getTableName('mediaProgresses')} mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.currentTime > 0 OR mp.ebookProgress > 0) AND mp.isFinished = 0`
