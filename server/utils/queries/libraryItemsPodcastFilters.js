@@ -455,7 +455,7 @@ module.exports = {
 
     // Search tags
     const tagMatches = []
-    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'tags'))} AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [tagResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.tags) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'tags'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -472,7 +472,7 @@ module.exports = {
 
     // Search genres
     const genreMatches = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND ${matchJsonValue} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND ${matchJsonValue} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC LIMIT :limit OFFSET :offset;`, {
       replacements: {
         libraryId: library.id,
         limit,
@@ -563,12 +563,12 @@ module.exports = {
    * @returns {Promise<{ totalSize:number, totalDuration:number, numAudioFiles:number, totalItems:number}>}
    */
   async getPodcastLibraryStats(libraryId) {
-    const [sizeResults] = await Database.sequelize.query(`SELECT SUM(li.size) AS totalSize FROM ${Database.getTableName('libraryItems')} li WHERE li.mediaType = 'podcast' AND li.libraryId = :libraryId;`, {
+    const [sizeResults] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize FROM ${Database.getTableName('libraryItems')} li WHERE ${Database.getColumnRef('li', 'mediaType')} = 'podcast' AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
       replacements: {
         libraryId
       }
     })
-    const [statResults] = await Database.sequelize.query(`SELECT SUM(json_extract(pe.audioFile, '$.duration')) AS totalDuration, COUNT(DISTINCT(li.id)) AS totalItems, COUNT(pe.id) AS numAudioFiles FROM ${Database.getTableName('libraryItems')} li, "podcasts" p LEFT OUTER JOIN ${Database.getTableName('podcastEpisodes')} pe ON pe.podcastId = p.id WHERE p.id = li.mediaId AND li.libraryId = :libraryId;`, {
+    const [statResults] = await Database.sequelize.query(`SELECT SUM(json_extract(pe.audioFile, '$.duration')) AS totalDuration, COUNT(DISTINCT(${Database.getColumnRef('li', 'id')})) AS totalItems, COUNT(pe.id) AS numAudioFiles FROM ${Database.getTableName('libraryItems')} li, "podcasts" p LEFT OUTER JOIN ${Database.getTableName('podcastEpisodes')} pe ON ${Database.getColumnRef('pe', 'podcastId')} = p.id WHERE p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
       replacements: {
         libraryId
       }
@@ -588,7 +588,7 @@ module.exports = {
    */
   async getGenresWithCount(libraryId) {
     const genres = []
-    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND p.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
+    const [genreResults] = await Database.sequelize.query(`SELECT value, count(*) AS numItems FROM "podcasts" p, ${Database.getTableName('libraryItems')} li, json_each(p.genres) WHERE ${Database.jsonValid(Database.getColumnRef('p', 'genres'))} AND p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId GROUP BY value ORDER BY numItems DESC;`, {
       replacements: {
         libraryId
       },
@@ -611,7 +611,7 @@ module.exports = {
    */
   async getLongestPodcasts(libraryId, limit) {
     const podcasts = await Database.podcastModel.findAll({
-      attributes: ['id', 'title', [Sequelize.literal(`(SELECT SUM(json_extract(pe.audioFile, '$.duration')) FROM podcastEpisodes pe WHERE pe.podcastId = podcast.id)`), 'duration']],
+      attributes: ['id', 'title', [Sequelize.literal(`(SELECT SUM(json_extract(pe.audioFile, '$.duration')) FROM podcastEpisodes pe WHERE ${Database.getColumnRef('pe', 'podcastId')} = ${Database.getColumnRef('podcast', 'id')})`), 'duration']],
       include: {
         model: Database.libraryItemModel,
         attributes: ['id', 'libraryId'],
