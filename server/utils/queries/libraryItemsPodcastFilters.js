@@ -302,7 +302,7 @@ module.exports = {
     if (sortBy === 'createdAt') {
       podcastEpisodeOrder.push(['createdAt', sortDesc ? 'DESC' : 'ASC'])
     } else if (sortBy === 'progress') {
-      podcastEpisodeOrder.push([Sequelize.literal('mediaProgresses.updatedAt'), sortDesc ? 'DESC' : 'ASC'])
+      podcastEpisodeOrder.push([Sequelize.literal('"mediaProgresses"."updatedAt"'), sortDesc ? 'DESC' : 'ASC'])
     }
 
     const userPermissionPodcastWhere = this.getUserPermissionPodcastWhereQuery(user)

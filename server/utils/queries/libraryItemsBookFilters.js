@@ -289,11 +289,11 @@ module.exports = {
       const nullDir = sortDesc ? 'DESC NULLS FIRST' : 'ASC NULLS LAST'
       return [[Sequelize.literal(`CAST(\`series.bookSeries.sequence\` AS FLOAT) ${nullDir}`)]]
     } else if (sortBy === 'progress') {
-      return [[Sequelize.literal(`mediaProgresses.updatedAt ${dir} NULLS LAST`)]]
+      return [[Sequelize.literal(`"mediaProgresses"."updatedAt" ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.createdAt') {
-      return [[Sequelize.literal(`mediaProgresses.createdAt ${dir} NULLS LAST`)]]
+      return [[Sequelize.literal(`"mediaProgresses"."createdAt" ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.finishedAt') {
-      return [[Sequelize.literal(`mediaProgresses.finishedAt ${dir} NULLS LAST`)]]
+      return [[Sequelize.literal(`"mediaProgresses"."finishedAt" ${dir} NULLS LAST`)]]
     } else if (sortBy === 'random') {
       return [Database.sequelize.random()]
     }
