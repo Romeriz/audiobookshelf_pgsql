@@ -761,7 +761,8 @@ module.exports = {
         where: {
           '$book.mediaProgresses.isFinished$': {
             [Sequelize.Op.or]: [null, false]
-          },
+          }
+        },
         include: {
           model: Database.bookModel,
           where: bookWhere,
@@ -892,7 +893,7 @@ module.exports = {
       where: [
         {
           '$mediaProgresses.isFinished$': {
-            [Sequelize.Op.or]: [null, 0]
+            [Sequelize.Op.or]: [null, false]
           },
           '$mediaProgresses.currentTime$': {
             [Sequelize.Op.or]: [null, 0]
