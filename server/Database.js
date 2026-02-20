@@ -65,6 +65,15 @@ class Database {
     return this.isPostgres ? `"${tableName}"."${columnName}"` : `${tableName}.${columnName}`
   }
 
+  /**
+   * Quote an identifier (column name or table alias) for PostgreSQL
+   * @param {string} identifier - The identifier to quote
+   * @returns {string} - Quoted identifier
+   */
+  quoteIdentifier(identifier) {
+    return this.isPostgres ? `"${identifier}"` : identifier
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }
