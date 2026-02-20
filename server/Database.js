@@ -125,6 +125,29 @@ class Database {
     return this.isPostgres ? `json_array_elements(${columnRef})` : `json_each(${columnRef})`
   }
 
+  /**
+   * Get JSON array aggregation function for the current database type
+   * SQLite uses json_group_array() which returns JSON array
+   * PostgreSQL uses json_agg() which returns JSONB array
+   * @param {string} expression - The expression to aggregate
+   * @returns {string} - Database-specific JSON aggregation function
+   */
+  jsonGroupArray(expression) {
+    return this.isPostgres ? `json_agg(${expression})` : `json_group_array(${expression})`
+  }
+
+  /**
+   * Get JSON key extraction for array iteration
+   * SQLite: json_each(column->"key")
+   * PostgreSQL: json_array_elements(column->>'key') (must extract as text first)
+   * @param {string} columnRef - The column reference (already quoted)
+   * @param {string} key - The JSON key to extract
+   * @returns {string} - Database-specific JSON extraction for iteration
+   */
+  jsonExtractForIteration(columnRef, key) {
+    return this.isPostgres ? `json_array_elements(${columnRef}->>'${key}')` : `json_each(${columnRef}->"${key}")`
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }

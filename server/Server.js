@@ -477,13 +477,11 @@ class Server {
     }
 
     // Remove series from hide from continue listening that no longer exist
-    // Skip for PostgreSQL - uses SQLite-specific JSON functions
-    if (!Database.isPostgres) {
-      try {
-        const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, json_group_array(value) AS seriesIdsToRemove FROM users u, json_each(u.extraData->"seriesHideFromContinueListening") LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id;`, {
-          model: Database.userModel,
-          type: Sequelize.QueryTypes.SELECT
-        })
+    try {
+      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u, ${Database.jsonExtractForIteration('u.extraData', 'seriesHideFromContinueListening')} LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
+        model: Database.userModel,
+        type: Sequelize.QueryTypes.SELECT
+      })
         for (const user of users) {
           const extraData = JSON.parse(user.extraData)
           const existingSeriesIds = extraData.seriesHideFromContinueListening
