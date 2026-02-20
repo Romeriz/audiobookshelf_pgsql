@@ -256,9 +256,9 @@ module.exports = {
 
     const getTitleOrder = () => {
       if (global.ServerSettings.sortingIgnorePrefix) {
-        return [Sequelize.literal('`libraryItem`.`titleIgnorePrefix` COLLATE NOCASE'), dir]
+        return [Sequelize.literal(`${Database.getColumnRef('libraryItem', 'titleIgnorePrefix')} COLLATE NOCASE`), dir]
       } else {
-        return [Sequelize.literal('`libraryItem`.`title` COLLATE NOCASE'), dir]
+        return [Sequelize.literal(`${Database.getColumnRef('libraryItem', 'title')} COLLATE NOCASE`), dir]
       }
     }
 
@@ -273,13 +273,13 @@ module.exports = {
     } else if (sortBy === 'media.duration') {
       return [['duration', dir]]
     } else if (sortBy === 'media.metadata.publishedYear') {
-      return [[Sequelize.literal(`CAST(\`book\`.\`publishedYear\` AS INTEGER)`), dir]]
+      return [[Sequelize.literal(`CAST(${Database.getColumnRef('book', 'publishedYear')} AS INTEGER)`), dir]]
     } else if (sortBy === 'media.metadata.authorNameLF') {
       // Sort by author name last first, secondary sort by title
-      return [[Sequelize.literal('`libraryItem`.`authorNamesLastFirst` COLLATE NOCASE'), dir], getTitleOrder()]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'authorNamesLastFirst')} COLLATE NOCASE`), dir], getTitleOrder()]
     } else if (sortBy === 'media.metadata.authorName') {
       // Sort by author name first last, secondary sort by title
-      return [[Sequelize.literal('`libraryItem`.`authorNamesFirstLast` COLLATE NOCASE'), dir], getTitleOrder()]
+      return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'authorNamesFirstLast')} COLLATE NOCASE`), dir], getTitleOrder()]
     } else if (sortBy === 'media.metadata.title') {
       if (collapseseries) {
         return [[Sequelize.literal('display_title COLLATE NOCASE'), dir]]
@@ -287,7 +287,7 @@ module.exports = {
       return [getTitleOrder()]
     } else if (sortBy === 'sequence') {
       const nullDir = sortDesc ? 'DESC NULLS FIRST' : 'ASC NULLS LAST'
-      return [[Sequelize.literal(`CAST(\`series.bookSeries.sequence\` AS FLOAT) ${nullDir}`)]]
+      return [[Sequelize.literal(`CAST(${Database.getColumnRef('series', 'bookSeries.sequence')} AS FLOAT) ${nullDir}`)]]
     } else if (sortBy === 'progress') {
       return [[Sequelize.literal(`"mediaProgresses"."updatedAt" ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.createdAt') {
@@ -326,7 +326,7 @@ module.exports = {
           required: true
         }
       ],
-      order: [Sequelize.literal('CAST(`books.bookSeries.sequence` AS FLOAT) ASC NULLS LAST')]
+      order: [Sequelize.literal(`CAST(${Database.getColumnRef('books', 'bookSeries.sequence')} AS FLOAT) ASC NULLS LAST`)]
     })
     const bookSeriesToInclude = []
     const booksToInclude = []
@@ -595,9 +595,9 @@ module.exports = {
       // When collapsing series and sorting by title then use the series name instead of the book title
       //  for this set an attribute "display_title" to use in sorting
       if (global.ServerSettings.sortingIgnorePrefix) {
-        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.nameIgnorePrefix FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), \`libraryItem\`.\`titleIgnorePrefix\`)`), 'display_title'])
+        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.nameIgnorePrefix FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), ${Database.getColumnRef('libraryItem', 'titleIgnorePrefix')})`), 'display_title'])
       } else {
-        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.name FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), \`libraryItem\`.\`title\`)`), 'display_title'])
+        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.name FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), ${Database.getColumnRef('libraryItem', 'title')})`), 'display_title'])
       }
     }
 

@@ -130,7 +130,7 @@ module.exports = {
       if (global.ServerSettings.sortingIgnorePrefix) {
         order.push([Sequelize.literal('nameIgnorePrefix COLLATE NOCASE'), dir])
       } else {
-        order.push([Sequelize.literal('`series`.`name` COLLATE NOCASE'), dir])
+        order.push([Sequelize.literal(`${Database.getColumnRef('series', 'name')} COLLATE NOCASE`), dir])
       }
     } else if (sortBy === 'totalDuration') {
       seriesAttributes.include.push([Sequelize.literal(`(SELECT SUM(${Database.getColumnRef('b', 'duration')}) FROM "books" b, ${Database.getTableName('bookSeries')} bs WHERE ${Database.getColumnRef('bs', 'seriesId')} = ${Database.getColumnRef('series', 'id')} AND ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('bs', 'bookId')})`), 'totalDuration'])

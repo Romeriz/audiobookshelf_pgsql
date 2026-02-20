@@ -87,12 +87,12 @@ module.exports = {
       return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'mtime')} ${dir}`)]]
     } else if (sortBy === 'media.metadata.author') {
       const nullDir = sortDesc ? 'DESC NULLS FIRST' : 'ASC NULLS LAST'
-      return [[Sequelize.literal(`\`podcast\`.\`author\` COLLATE NOCASE ${nullDir}`)]]
+      return [[Sequelize.literal(`${Database.getColumnRef('podcast', 'author')} COLLATE NOCASE ${nullDir}`)]]
     } else if (sortBy === 'media.metadata.title') {
       if (global.ServerSettings.sortingIgnorePrefix) {
-        return [[Sequelize.literal('`libraryItem`.`titleIgnorePrefix` COLLATE NOCASE'), dir]]
+        return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'titleIgnorePrefix')} COLLATE NOCASE`), dir]]
       } else {
-        return [[Sequelize.literal('`libraryItem`.`title` COLLATE NOCASE'), dir]]
+        return [[Sequelize.literal(`${Database.getColumnRef('libraryItem', 'title')} COLLATE NOCASE`), dir]]
       }
     } else if (sortBy === 'media.numTracks') {
       return [['numEpisodes', dir]]
