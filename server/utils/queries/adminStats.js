@@ -145,7 +145,7 @@ module.exports = {
       .slice(0, 3)
 
     // Stats for total books, size and duration for everything added this year or earlier
-    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(b.duration) AS totalDuration, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, "books" b WHERE b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'mediaType')} = 'book' AND ${Database.getColumnRef('li', 'createdAt')} < ':nextYear-01-01';`, {
+    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(b.duration) AS totalDuration, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('books')} b WHERE b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'mediaType')} = 'book' AND ${Database.getColumnRef('li', 'createdAt')} < ':nextYear-01-01';`, {
       replacements: {
         nextYear: year + 1
       }
