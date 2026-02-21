@@ -480,7 +480,10 @@ class Server {
     try {
       const jsonIterTable = Database.isPostgres ? `CROSS JOIN ${Database.jsonExtractForIteration('u', 'extraData', 'seriesHideFromContinueListening')}` : `, ${Database.jsonExtractForIteration('u', 'extraData', 'seriesHideFromContinueListening')}`
       const jsonIterJoin = Database.isPostgres ? 'se.id = value::uuid' : 'se.id = value'
-      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON ${jsonIterJoin} WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
+      const uId = Database.getColumnRef('u', 'id')
+      const uUsername = Database.getColumnRef('u', 'username')
+      const uExtraData = Database.getColumnRef('u', 'extraData')
+      const users = await Database.sequelize.query(`SELECT ${uId}, ${uUsername}, ${uExtraData}, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON ${jsonIterJoin} WHERE se.id IS NULL GROUP BY ${uId}, ${uUsername}, ${uExtraData};`, {
         model: Database.userModel,
         type: Sequelize.QueryTypes.SELECT
       })
