@@ -479,7 +479,8 @@ class Server {
     // Remove series from hide from continue listening that no longer exist
     try {
       const jsonIterTable = Database.isPostgres ? `CROSS JOIN ${Database.jsonExtractForIteration('u', 'extraData', 'seriesHideFromContinueListening')}` : `, ${Database.jsonExtractForIteration('u', 'extraData', 'seriesHideFromContinueListening')}`
-      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON se.id = value WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
+      const jsonIterJoin = Database.isPostgres ? 'se.id = value::uuid' : 'se.id = value'
+      const users = await Database.sequelize.query(`SELECT u.id, u.username, u.extraData, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON ${jsonIterJoin} WHERE se.id IS NULL GROUP BY u.id, u.username, u.extraData;`, {
         model: Database.userModel,
         type: Sequelize.QueryTypes.SELECT
       })
