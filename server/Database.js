@@ -147,7 +147,7 @@ class Database {
    */
   jsonExtractForIteration(tableName, columnName, key) {
     const columnRef = this.getColumnRef(tableName, columnName)
-    return this.isPostgres ? `(json_array_elements(${columnRef}->'${key}'))::text AS value` : `json_each(${columnRef}->"${key}")`
+    return this.isPostgres ? `json_array_elements_text(${columnRef}->'${key}') AS value` : `json_each(${columnRef}->"${key}")`
   }
 
   get models() {
