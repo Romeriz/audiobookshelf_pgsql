@@ -150,6 +150,28 @@ class Database {
     return this.isPostgres ? `json_array_elements_text(${columnRef}->'${key}') AS value` : `json_each(${columnRef}->"${key}")`
   }
 
+  /**
+   * Get IFNULL/COALESCE function for the current database type
+   * SQLite uses IFNULL(), PostgreSQL uses COALESCE()
+   * @param {...string} args - Arguments to pass to the function (first non-null is returned)
+   * @returns {string} - Database-specific null coalescing function
+   */
+  ifnull(...args) {
+    return this.isPostgres ? `COALESCE(${args.join(', ')})` : `IFNULL(${args.join(', ')})`
+  }
+
+  /**
+   * Extract a value from a JSON column
+   * SQLite: json_extract(column, '$.key')
+   * PostgreSQL: column->>'key' (returns text)
+   * @param {string} columnRef - The column reference (can be quoted or unquoted)
+   * @param {string} key - The JSON key to extract (without $. prefix)
+   * @returns {string} - Database-specific JSON extraction
+   */
+  jsonExtract(columnRef, key) {
+    return this.isPostgres ? `${columnRef}->>'${key}'` : `json_extract(${columnRef}, '$.${key}')`
+  }
+
   get models() {
     return this.sequelize?.models || {}
   }

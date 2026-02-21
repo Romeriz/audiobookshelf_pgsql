@@ -287,13 +287,17 @@ module.exports = {
       return [getTitleOrder()]
     } else if (sortBy === 'sequence') {
       const nullDir = sortDesc ? 'DESC NULLS FIRST' : 'ASC NULLS LAST'
-      return [[Sequelize.literal(`CAST(${Database.getColumnRef('series', 'bookSeries.sequence')} AS FLOAT) ${nullDir}`)]]
+      const seqCol = Database.isPostgres ? '"bookSeries"."sequence"' : 'bookSeries.sequence'
+      return [[Sequelize.literal(`CAST(${seqCol} AS FLOAT) ${nullDir}`)]]
     } else if (sortBy === 'progress') {
-      return [[Sequelize.literal(`"mediaProgresses"."updatedAt" ${dir} NULLS LAST`)]]
+      const mpUpdatedAt = Database.isPostgres ? '"mediaProgresses"."updatedAt"' : 'mediaProgresses.updatedAt'
+      return [[Sequelize.literal(`${mpUpdatedAt} ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.createdAt') {
-      return [[Sequelize.literal(`"mediaProgresses"."createdAt" ${dir} NULLS LAST`)]]
+      const mpCreatedAt = Database.isPostgres ? '"mediaProgresses"."createdAt"' : 'mediaProgresses.createdAt'
+      return [[Sequelize.literal(`${mpCreatedAt} ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.finishedAt') {
-      return [[Sequelize.literal(`"mediaProgresses"."finishedAt" ${dir} NULLS LAST`)]]
+      const mpFinishedAt = Database.isPostgres ? '"mediaProgresses"."finishedAt"' : 'mediaProgresses.finishedAt'
+      return [[Sequelize.literal(`${mpFinishedAt} ${dir} NULLS LAST`)]]
     } else if (sortBy === 'random') {
       return [Database.sequelize.random()]
     }
@@ -326,7 +330,7 @@ module.exports = {
           required: true
         }
       ],
-      order: [Sequelize.literal(`CAST(${Database.getColumnRef('books', 'bookSeries.sequence')} AS FLOAT) ASC NULLS LAST`)]
+      order: [Sequelize.literal(`CAST(${Database.isPostgres ? '"bookSeries"."sequence"' : 'bookSeries.sequence'} AS FLOAT) ASC NULLS LAST`)]
     })
     const bookSeriesToInclude = []
     const booksToInclude = []
@@ -595,10 +599,20 @@ module.exports = {
 
       // When collapsing series and sorting by title then use the series name instead of the book title
       //  for this set an attribute "display_title" to use in sorting
+      const bsTable = Database.isPostgres ? '"bookSeries"' : 'bookSeries'
+      const sTable = Database.isPostgres ? '"series"' : 'series'
+      const bsSeriesId = Database.isPostgres ? '"bs"."seriesId"' : 'bs.seriesId'
+      const bsBookId = Database.isPostgres ? '"bs"."bookId"' : 'bs.bookId'
+      const bsId = Database.isPostgres ? '"bs"."id"' : 'bs.id'
+      const sId = Database.isPostgres ? '"s"."id"' : 's.id'
+      const bookId = Database.isPostgres ? '"book"."id"' : 'book.id'
+      const sNameIgnorePrefix = Database.isPostgres ? '"s"."nameIgnorePrefix"' : 's.nameIgnorePrefix'
+      const sName = Database.isPostgres ? '"s"."name"' : 's.name'
+      
       if (global.ServerSettings.sortingIgnorePrefix) {
-        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.nameIgnorePrefix FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), ${Database.getColumnRef('libraryItem', 'titleIgnorePrefix')})`), 'display_title'])
+        bookAttributes.include.push([Sequelize.literal(`${Database.ifnull(`(SELECT ${sNameIgnorePrefix} FROM ${bsTable} AS bs, ${sTable} AS s WHERE ${bsSeriesId} = ${sId} AND ${bsBookId} = ${bookId} AND ${bsId} IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')}))`, Database.getColumnRef('libraryItem', 'titleIgnorePrefix'))}`), 'display_title'])
       } else {
-        bookAttributes.include.push([Sequelize.literal(`IFNULL((SELECT s.name FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = book.id AND bs.id IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')})), ${Database.getColumnRef('libraryItem', 'title')})`), 'display_title'])
+        bookAttributes.include.push([Sequelize.literal(`${Database.ifnull(`(SELECT ${sName} FROM ${bsTable} AS bs, ${sTable} AS s WHERE ${bsSeriesId} = ${sId} AND ${bsBookId} = ${bookId} AND ${bsId} IN (${bookSeriesToInclude.map((v) => `"${v.id}"`).join(', ')}))`, Database.getColumnRef('libraryItem', 'title'))}`), 'display_title'])
       }
     }
 

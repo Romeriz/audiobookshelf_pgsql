@@ -568,7 +568,8 @@ module.exports = {
         libraryId
       }
     })
-    const [statResults] = await Database.sequelize.query(`SELECT SUM(json_extract(pe.audioFile, '$.duration')) AS totalDuration, COUNT(DISTINCT(${Database.getColumnRef('li', 'id')})) AS totalItems, COUNT(pe.id) AS numAudioFiles FROM ${Database.getTableName('libraryItems')} li, "podcasts" p LEFT OUTER JOIN ${Database.getTableName('podcastEpisodes')} pe ON ${Database.getColumnRef('pe', 'podcastId')} = p.id WHERE p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
+    const peAudioFile = Database.isPostgres ? '"pe"."audioFile"' : 'pe.audioFile'
+    const [statResults] = await Database.sequelize.query(`SELECT SUM(${Database.jsonExtract(peAudioFile, 'duration')}) AS totalDuration, COUNT(DISTINCT(${Database.getColumnRef('li', 'id')})) AS totalItems, COUNT(pe.id) AS numAudioFiles FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('podcasts')} p LEFT OUTER JOIN ${Database.getTableName('podcastEpisodes')} pe ON ${Database.getColumnRef('pe', 'podcastId')} = p.id WHERE p.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
       replacements: {
         libraryId
       }
@@ -610,8 +611,10 @@ module.exports = {
    * @returns {Promise<{ id:string, title:string, duration:number }[]>}
    */
   async getLongestPodcasts(libraryId, limit) {
+    const peAudioFile = Database.isPostgres ? '"pe"."audioFile"' : 'pe.audioFile'
+    const peTable = Database.isPostgres ? '"podcastEpisodes"' : 'podcastEpisodes'
     const podcasts = await Database.podcastModel.findAll({
-      attributes: ['id', 'title', [Sequelize.literal(`(SELECT SUM(json_extract(pe.audioFile, '$.duration')) FROM podcastEpisodes pe WHERE ${Database.getColumnRef('pe', 'podcastId')} = ${Database.getColumnRef('podcast', 'id')})`), 'duration']],
+      attributes: ['id', 'title', [Sequelize.literal(`(SELECT SUM(${Database.jsonExtract(peAudioFile, 'duration')}) FROM ${peTable} pe WHERE ${Database.getColumnRef('pe', 'podcastId')} = ${Database.getColumnRef('podcast', 'id')})`), 'duration']],
       include: {
         model: Database.libraryItemModel,
         attributes: ['id', 'libraryId'],
