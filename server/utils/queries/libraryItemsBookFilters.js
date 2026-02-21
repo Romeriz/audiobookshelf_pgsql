@@ -1280,7 +1280,7 @@ module.exports = {
    * @returns {Promise<{ totalSize:number, totalDuration:number, numAudioFiles:number, totalItems:number}>}
    */
   async getBookLibraryStats(libraryId) {
-    const [statResults] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(b.duration) AS totalDuration, SUM(json_array_length(b.audioFiles)) AS numAudioFiles, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('books')} b WHERE b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
+    const [statResults] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(${Database.getColumnRef('b', 'duration')}) AS totalDuration, SUM(json_array_length(${Database.getColumnRef('b', 'audioFiles')})) AS numAudioFiles, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('books')} b WHERE ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'libraryId')} = :libraryId;`, {
       replacements: {
         libraryId
       }
