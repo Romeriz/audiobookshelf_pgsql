@@ -145,7 +145,7 @@ module.exports = {
       .slice(0, 3)
 
     // Stats for total books, size and duration for everything added this year or earlier
-    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(b.duration) AS totalDuration, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('books')} b WHERE b.id = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'mediaType')} = 'book' AND ${Database.getColumnRef('li', 'createdAt')} < ':nextYear-01-01';`, {
+    const [totalStatResultsRow] = await Database.sequelize.query(`SELECT SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, SUM(${Database.getColumnRef('b', 'duration')}) AS totalDuration, COUNT(*) AS totalItems FROM ${Database.getTableName('libraryItems')} li, ${Database.getTableName('books')} b WHERE ${Database.getColumnRef('b', 'id')} = ${Database.getColumnRef('li', 'mediaId')} AND ${Database.getColumnRef('li', 'mediaType')} = 'book' AND ${Database.getColumnRef('li', 'createdAt')} < ':nextYear-01-01';`, {
       replacements: {
         nextYear: year + 1
       }
@@ -179,7 +179,7 @@ module.exports = {
    * @returns {Promise<{books: SizeObject, podcasts: SizeObject, total: SizeObject}}>}
    */
   async getTotalSize() {
-    const [mediaTypeStats] = await Database.sequelize.query(`SELECT li.mediaType, SUM(li.size) AS totalSize, COUNT(*) AS numItems FROM ${Database.getTableName('libraryItems')} li group by li.mediaType;`)
+    const [mediaTypeStats] = await Database.sequelize.query(`SELECT ${Database.getColumnRef('li', 'mediaType')}, SUM(${Database.getColumnRef('li', 'size')}) AS totalSize, COUNT(*) AS numItems FROM ${Database.getTableName('libraryItems')} li GROUP BY ${Database.getColumnRef('li', 'mediaType')};`)
     const bookStats = mediaTypeStats.find((m) => m.mediaType === 'book')
     const podcastStats = mediaTypeStats.find((m) => m.mediaType === 'podcast')
 
@@ -205,7 +205,7 @@ module.exports = {
    * @returns {Promise<{numBookAudioFiles: number, numPodcastAudioFiles: number, numAudioFiles: number}>}
    */
   async getNumAudioFiles() {
-    const [numBookAudioFilesRow] = await Database.sequelize.query(`SELECT SUM(json_array_length(b.audioFiles)) AS numAudioFiles FROM books b;`)
+    const [numBookAudioFilesRow] = await Database.sequelize.query(`SELECT SUM(json_array_length(${Database.getColumnRef('b', 'audioFiles')})) AS numAudioFiles FROM ${Database.getTableName('books')} b;`)
     const numBookAudioFiles = numBookAudioFilesRow[0]?.numAudioFiles || 0
     const numPodcastAudioFiles = await Database.podcastEpisodeModel.count()
     return {
