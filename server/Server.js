@@ -483,7 +483,8 @@ class Server {
       const uId = Database.getColumnRef('u', 'id')
       const uUsername = Database.getColumnRef('u', 'username')
       const uExtraData = Database.getColumnRef('u', 'extraData')
-      const users = await Database.sequelize.query(`SELECT ${uId}, ${uUsername}, ${uExtraData}, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON ${jsonIterJoin} WHERE se.id IS NULL GROUP BY ${uId}, ${uUsername}, ${uExtraData};`, {
+      const groupByExtraData = Database.isPostgres ? `${uExtraData}::text` : uExtraData
+      const users = await Database.sequelize.query(`SELECT ${uId}, ${uUsername}, ${uExtraData}, ${Database.jsonGroupArray('value')} AS seriesIdsToRemove FROM users u ${jsonIterTable} LEFT JOIN series se ON ${jsonIterJoin} WHERE se.id IS NULL GROUP BY ${uId}, ${uUsername}, ${groupByExtraData};`, {
         model: Database.userModel,
         type: Sequelize.QueryTypes.SELECT
       })
