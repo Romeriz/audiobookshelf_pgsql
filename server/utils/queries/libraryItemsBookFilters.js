@@ -502,7 +502,8 @@ module.exports = {
       })
       if (sortBy !== 'sequence') {
         // Secondary sort by sequence
-        sortOrder.push([Sequelize.literal('CAST(`series.bookSeries.sequence` AS FLOAT) ASC NULLS LAST')])
+        const seqRef = Database.isPostgres ? '"series->bookSeries"."sequence"' : '`series.bookSeries.sequence`'
+        sortOrder.push([Sequelize.literal(`CAST(${seqRef} AS FLOAT) ASC NULLS LAST`)])
       }
     } else if (filterGroup === 'issues') {
       libraryItemWhere[Sequelize.Op.or] = [
